@@ -108,7 +108,7 @@ jobs:
           PLUGIN_DIR=$(find zap-downloader/apps/zap-downloader-node/test-unpack -type d -name plugin | head -1)
           echo "PLUGIN_DIR=$PLUGIN_DIR"
 
-          cp "${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
+          cp "addon/${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
           ls -la "$PLUGIN_DIR"
 
       # -------------------------------
