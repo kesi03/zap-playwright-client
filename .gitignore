@@ -7,3 +7,4 @@ gradle-dist
 bin
 gradle-8.5-all.zip
 gradle-8.5-bin.zip
+node_modules
