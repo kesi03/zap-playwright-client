@@ -3,9 +3,9 @@ name: Test Playwright Client Add-on
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main,master]
   pull_request:
-    branches: [master]
+    branches: [main,master]
 
 jobs:
   test-addon:
@@ -13,10 +13,13 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # -------------------------------
+      # CHECKOUT REPOS
+      # -------------------------------
       - name: Checkout add-on repo
         uses: actions/checkout@v4
         with:
-          path: zap-playwright-client
+          path: addon
 
       - name: Checkout zap-downloader
         uses: actions/checkout@v4
@@ -24,30 +27,14 @@ jobs:
           repository: kesi03/zap-downloader
           path: zap-downloader
 
+      # -------------------------------
+      # JAVA + NODE SETUP
+      # -------------------------------
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Build add-on
-        working-directory: zap-playwright-client
-        run: |
-          chmod +x gradlew || true
-          ./gradlew build -x test
-          # Find built artifact (.zap or jar)
-          ADDON_ZAP=$(ls build/zapAddOn/bin/*.zap 2>/dev/null | head -1 || true)
-          if [ -z "$ADDON_ZAP" ]; then
-            ADDON_ZAP=$(ls build/libs/*.jar 2>/dev/null | head -1 || true)
-          fi
-          if [ -z "$ADDON_ZAP" ]; then
-            ADDON_ZAP=$(ls build/*.jar 2>/dev/null | head -1 || true)
-          fi
-          if [ -z "$ADDON_ZAP" ]; then
-            echo "No artifact found"; exit 1
-          fi
-          echo "ADDON_ZAP=$ADDON_ZAP" >> $GITHUB_ENV
-          echo "Add-on artifact: $ADDON_ZAP"
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v4
@@ -59,6 +46,31 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.0.0 --activate
 
+      # -------------------------------
+      # BUILD ADD-ON
+      # -------------------------------
+      - name: Build add-on
+        working-directory: addon
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x test
+
+          # Find built artifact
+          ADDON=$(ls build/zapAddOn/bin/*.zap 2>/dev/null | head -1 || true)
+          if [ -z "$ADDON" ]; then
+            ADDON=$(ls build/libs/*.jar 2>/dev/null | head -1 || true)
+          fi
+          if [ -z "$ADDON" ]; then
+            echo "No add-on artifact found"
+            exit 1
+          fi
+
+          echo "ADDON_PATH=$ADDON" >> $GITHUB_ENV
+          echo "Add-on artifact: $ADDON"
+
+      # -------------------------------
+      # BUILD ZAP-DOWNLOADER
+      # -------------------------------
       - name: Install zap-downloader dependencies
         working-directory: zap-downloader/apps/zap-downloader-node
         run: pnpm install
@@ -67,11 +79,15 @@ jobs:
         working-directory: zap-downloader/apps/zap-downloader-node
         run: pnpm build
 
-      - name: Create offline package (ZAP core + all addons)
+      # -------------------------------
+      # CREATE OFFLINE PACKAGE
+      # -------------------------------
+      - name: Create offline package
         working-directory: zap-downloader/apps/zap-downloader-node
         run: |
           pnpm offline:pack
-          echo "OFFLINE_PACKAGE=$(ls zap-offline-*.tar | head -1)" >> $GITHUB_ENV
+          PKG=$(ls zap-offline-*.tar | head -1)
+          echo "OFFLINE_PACKAGE=$PKG" >> $GITHUB_ENV
 
       - name: Unpack offline package
         working-directory: zap-downloader/apps/zap-downloader-node
@@ -80,78 +96,77 @@ jobs:
             -i "${{ env.OFFLINE_PACKAGE }}" \
             -o test-unpack
 
-      - name: Inspect unpacked structure
-        working-directory: zap-downloader/apps/zap-downloader-node
-        run: find test-unpack -type d | head -40
-
-      - name: Install our add-on into unpacked ZAP plugin dir
+      # -------------------------------
+      # INSTALL ADD-ON INTO ZAP
+      # -------------------------------
+      - name: Install add-on into ZAP plugin dir
         run: |
-          echo "ADDON_ZAP=${{ env.ADDON_ZAP }}"
-          PLUGIN_DIR=$(find "${{ github.workspace }}/zap-downloader/apps/zap-downloader-node/test-unpack" -type d -name "plugin" | head -1)
+          PLUGIN_DIR=$(find zap-downloader/apps/zap-downloader-node/test-unpack -type d -name plugin | head -1)
           echo "PLUGIN_DIR=$PLUGIN_DIR"
-          if [ -z "$PLUGIN_DIR" ]; then
-            echo "ERROR: No plugin directory found"
-            exit 1
-          fi
-          cp "${{ github.workspace }}/zap-playwright-client/${{ env.ADDON_ZAP }}" "$PLUGIN_DIR/"
-          echo "Add-on installed in $PLUGIN_DIR"
+
+          cp "${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
           ls -la "$PLUGIN_DIR"
 
+      # -------------------------------
+      # PATCH TOML (ZGC FIX)
+      # -------------------------------
       - name: Patch TOML for ZGC compat
         working-directory: zap-downloader/apps/zap-downloader-node
         run: |
-          TOML_FILE=$(find test-unpack -name "default.toml" | head -1)
-          echo "Patching: $TOML_FILE"
-          if [ -f "$TOML_FILE" ]; then
-            if grep -q "UseZGC" "$TOML_FILE" && ! grep -q "UnlockExperimentalVMOptions" "$TOML_FILE"; then
-              sed -i '/-XX:+UseZGC/i\  "-XX:+UnlockExperimentalVMOptions",' "$TOML_FILE"
-            fi
+          TOML=$(find test-unpack -name default.toml | head -1)
+          if grep -q "UseZGC" "$TOML" && ! grep -q "UnlockExperimentalVMOptions" "$TOML"; then
+            sed -i '/-XX:+UseZGC/i\  "-XX:+UnlockExperimentalVMOptions",' "$TOML"
           fi
 
+      # -------------------------------
+      # START ZAP DAEMON
+      # -------------------------------
       - name: Start daemon
         working-directory: zap-downloader/apps/zap-downloader-node
         run: |
-          TOML_FILE=$(find test-unpack -name "default.toml" | head -1)
-          pnpm ts-node src/index.ts daemon start -t "$TOML_FILE"
+          TOML=$(find test-unpack -name default.toml | head -1)
+          pnpm ts-node src/index.ts daemon start -t "$TOML"
 
       - name: Wait for daemon
         working-directory: zap-downloader/apps/zap-downloader-node
         run: pnpm ts-node src/index.ts daemon started --timeout 300 --host 127.0.0.1
 
-      - name: Debug ZAP logs (always)
+      # -------------------------------
+      # DEBUG LOGS
+      # -------------------------------
+      - name: Debug ZAP logs
         if: always()
         working-directory: zap-downloader/apps/zap-downloader-node
         run: |
-          echo "=== PM2 process list ==="
-          npx pm2 list 2>/dev/null || true
+          echo "=== PM2 list ==="
+          npx pm2 list || true
           echo "=== Java processes ==="
           ps aux | grep java || true
-          echo "=== ZAP home log (head -100) ==="
-          cat test-unpack/workspace/.zap/zap.log 2>/dev/null | head -50 || echo "No ZAP log found"
-          echo "=== ZAP API: try core/view/version/ ==="
-          curl -s "http://127.0.0.1:8080/JSON/core/view/version/" 2>/dev/null || echo "API not reachable"
+          echo "=== ZAP log ==="
+          cat test-unpack/workspace/.zap/zap.log | head -100 || true
 
-      - name: Ping daemon
-        if: success()
-        working-directory: zap-downloader/apps/zap-downloader-node
-        run: pnpm ts-node src/index.ts daemon ping
-
+      # -------------------------------
+      # TRIGGER PLAYWRIGHT ADD-ON
+      # -------------------------------
       - name: Trigger Playwright add-on API
-        if: success()
         run: |
-          echo "Triggering Playwright add-on runCrawlAndScan"
-          curl -s -S "http://127.0.0.1:8080/JSON/playwrightclient/action/runCrawlAndScan/?url=http://example.com" -o /tmp/playwright-api.json || true
-          cat /tmp/playwright-api.json || true
-          grep -qi "started" /tmp/playwright-api.json && echo "playwright api: PASSED" || echo "playwright api: UNKNOWN"
+          curl -s "http://127.0.0.1:8080/JSON/playwrightclient/action/runCrawlAndScan/?url=http://example.com" -o /tmp/out.json
+          cat /tmp/out.json
 
+      # -------------------------------
+      # STOP DAEMON
+      # -------------------------------
       - name: Stop daemon
         if: always()
         working-directory: zap-downloader/apps/zap-downloader-node
         run: pnpm ts-node src/index.ts daemon stop
 
+      # -------------------------------
+      # UPLOAD ARTIFACT
+      # -------------------------------
       - name: Upload add-on artifact
         uses: actions/upload-artifact@v4
         with:
           name: zap-playwright-client
-          path: zap-playwright-client/${{ env.ADDON_ZAP }}
+          path: ${{ env.ADDON_PATH }}
           retention-days: 7
