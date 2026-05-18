@@ -18,7 +18,7 @@ repositories {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -48,61 +48,7 @@ tasks.shadowJar {
     minimize()
 }
 
-//
-// --- GENERATED RESOURCES (ZapAddOn.xml) ---
-//
 
-val generateZapAddOnXml by tasks.registering {
-    val outputDir = layout.buildDirectory.dir("generated-resources")
-
-    outputs.dir(outputDir)
-
-    doLast {
-        val file = outputDir.get().file("ZapAddOn.xml").asFile
-        file.parentFile.mkdirs()
-        file.writeText(
-            """
-            <addon id="playwrightclient"
-                   version="$version"
-                   status="alpha"
-                   author="Kester"
-                   name="Playwright Client"
-                   description="Playwright-powered crawler and OWASP browser tests">
-                <dependencies>
-                    <zapaddon id="core" />
-                </dependencies>
-            </addon>
-            """.trimIndent()
-        )
-    }
-}
-
-//
-// --- RESOURCE PIPELINE FIX ---
-//
-
-sourceSets["main"].resources.srcDir("src/main/resources")
-sourceSets["main"].resources.srcDir(generateZapAddOnXml.map { it.outputs.files })
-
-tasks.named("processResources") {
-    dependsOn(generateZapAddOnXml)
-}
-
-//
-// --- JAR MANIFEST ---
-//
-
-tasks.jar {
-    manifest {
-        attributes(
-            "Manifest-Version" to "1.0",
-            "Add-On-Name" to "PlaywrightClient",
-            "Add-On-Version" to version,
-            "Add-On-Author" to "Kester",
-            "Add-On-Description" to "Playwright-powered crawler and OWASP browser tests"
-        )
-    }
-}
 
 //
 // --- ZAP ADD-ON CONFIG ---
