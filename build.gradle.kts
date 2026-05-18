@@ -30,7 +30,7 @@ dependencies {
     implementation("com.microsoft.playwright:playwright:1.44.0")
     implementation("org.json:json:20230227")
 
-    // Logging (optional but recommended)
+    // Logging
     implementation("org.slf4j:slf4j-api:2.0.12")
     implementation("org.slf4j:slf4j-simple:2.0.12")
 
@@ -48,48 +48,19 @@ tasks.shadowJar {
     minimize()
 }
 
-tasks.register<Copy>("copyZapResources") {
-    from("src/main/resources")
-    into("$buildDir/resources/main")
-}
-
-tasks.build {
-    dependsOn("copyZapResources")
-}
-
-tasks.jar {
-    manifest {
-        attributes(
-            "Manifest-Version" to "1.0",
-            "Add-On-Name" to "PlaywrightClient",
-            "Add-On-Version" to version,
-            "Add-On-Author" to "Kester",
-            "Add-On-Description" to "Playwright-powered crawler and OWASP browser tests"
-        )
-    }
-}
-
-zapAddOn {
-    addOnId.set("playwrightclient")
-    addOnName.set("Playwright Client")
-    zapVersion.set("2.15.0")
-    addOnStatus.set(AddOnStatus.ALPHA)
-
-    manifest {
-        author.set("Kester")
-        url.set("https://github.com/your-org/zap-playwright-client")
-        extensions {
-            register("org.zaproxy.addon.playwrightclient.ExtensionPlaywrightClient")
-        }
-    }
-}
+//
+// --- GENERATED RESOURCES (ZapAddOn.xml) ---
+//
 
 val generateZapAddOnXml by tasks.registering {
+    val outputDir = layout.buildDirectory.dir("generated-resources")
+
+    outputs.dir(outputDir)
+
     doLast {
-        val outputDir = File(buildDir, "generated-resources")
-        outputDir.mkdirs()
-        val outputFile = File(outputDir, "ZapAddOn.xml")
-        outputFile.writeText(
+        val file = outputDir.get().file("ZapAddOn.xml").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
             """
             <addon id="playwrightclient"
                    version="$version"
@@ -106,4 +77,48 @@ val generateZapAddOnXml by tasks.registering {
     }
 }
 
-sourceSets["main"].resources.srcDir(layout.buildDirectory.dir("generated-resources"))
+//
+// --- RESOURCE PIPELINE FIX ---
+//
+
+sourceSets["main"].resources.srcDir("src/main/resources")
+sourceSets["main"].resources.srcDir(generateZapAddOnXml.map { it.outputs.files })
+
+tasks.named("processResources") {
+    dependsOn(generateZapAddOnXml)
+}
+
+//
+// --- JAR MANIFEST ---
+//
+
+tasks.jar {
+    manifest {
+        attributes(
+            "Manifest-Version" to "1.0",
+            "Add-On-Name" to "PlaywrightClient",
+            "Add-On-Version" to version,
+            "Add-On-Author" to "Kester",
+            "Add-On-Description" to "Playwright-powered crawler and OWASP browser tests"
+        )
+    }
+}
+
+//
+// --- ZAP ADD-ON CONFIG ---
+//
+
+zapAddOn {
+    addOnId.set("playwrightclient")
+    addOnName.set("Playwright Client")
+    zapVersion.set("2.15.0")
+    addOnStatus.set(AddOnStatus.ALPHA)
+
+    manifest {
+        author.set("Kester")
+        url.set("https://github.com/your-org/zap-playwright-client")
+        extensions {
+            register("org.zaproxy.addon.playwrightclient.ExtensionPlaywrightClient")
+        }
+    }
+}
