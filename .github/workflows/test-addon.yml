@@ -55,6 +55,10 @@ jobs:
           chmod +x gradlew
           ./gradlew build -x test
 
+          ls build/zapAddOn -asg 
+
+          ls build/zapAddOn/bin -asg
+
           # Find built artifact
           ADDON=$(ls build/zapAddOn/bin/*.zap 2>/dev/null | head -1 || true)
           if [ -z "$ADDON" ]; then
