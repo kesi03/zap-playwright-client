@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "org.zaproxy.addon"
-version = "0.1.0"
+version = "0.1.1"
 
 repositories {
     mavenCentral()
