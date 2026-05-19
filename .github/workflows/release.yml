@@ -1,0 +1,109 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump type
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Read current version
+        id: current_version
+        run: |
+          VERSION=$(grep '^version=' gradle.properties | cut -d= -f2)
+          echo "current=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Calculate new version
+        id: new_version
+        run: |
+          CURRENT=${{ steps.current_version.outputs.current }}
+          IFS='.' read -r -a PARTS <<< "$CURRENT"
+          MAJOR=${PARTS[0]}
+          MINOR=${PARTS[1]}
+          PATCH=${PARTS[2]}
+          case "${{ github.event.inputs.bump }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          echo "new=$MAJOR.$MINOR.$PATCH" >> "$GITHUB_OUTPUT"
+
+      - name: Update version files
+        run: |
+          NEW_VER=${{ steps.new_version.outputs.new }}
+          sed -i "s/^version=.*/version=$NEW_VER/" gradle.properties
+          sed -i "s/^version = \".*\"/version = \"$NEW_VER\"/" build.gradle.kts
+
+      - name: Build add-on
+        run: |
+          chmod +x gradlew
+          ./gradlew build
+
+      - name: Get .zap file info
+        id: zap_info
+        run: |
+          ZAP_FILE=$(ls build/zapAddOn/bin/*.zap | head -1)
+          echo "file=$ZAP_FILE" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$ZAP_FILE")" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SHA256 checksum
+        run: |
+          ZAP_FILE=${{ steps.zap_info.outputs.file }}
+          cd "$(dirname "$ZAP_FILE")"
+          sha256sum "$(basename "$ZAP_FILE")" > "${{ steps.zap_info.outputs.name }}.sha256"
+          echo "checksum_file=$(realpath "${{ steps.zap_info.outputs.name }}.sha256")" >> "$GITHUB_OUTPUT"
+        id: checksum
+
+      - name: Commit and tag version bump
+        run: |
+          NEW_VER=${{ steps.new_version.outputs.new }}
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gradle.properties build.gradle.kts
+          git commit -m "Bump version to $NEW_VER"
+          git tag "v$NEW_VER"
+          git push origin HEAD --tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.new_version.outputs.new }}
+          name: Release v${{ steps.new_version.outputs.new }}
+          files: |
+            ${{ steps.zap_info.outputs.file }}
+            ${{ steps.checksum.outputs.checksum_file }}
+          generate_release_notes: true
