@@ -1,0 +1,78 @@
+version: "3"
+
+vars:
+  ROOT: "{{.TASKFILE_DIR}}"
+  ZAP_DOWNLOADER: "zap-downloader"
+  OFFLINE_TAR: "zap-offline.tar"
+  UNPACK_DIR: "zap-dev-install"
+
+tasks:
+  default:
+    desc: "Run full ZAP dev workflow"
+    cmds:
+      - task: build-addon
+      - task: offline-pack
+      - task: offline-unpack
+      - task: install-addon
+      - task: patch-toml
+      - task: start-daemon
+
+  build-addon:
+    desc: "Build Gradle add-on"
+    cmds:
+      - |
+        {{if eq OS "windows"}}
+        "{{joinPath .ROOT "gradlew.bat"}}" build
+        {{else}}
+        "{{joinPath .ROOT "gradlew"}}" build
+        {{end}}
+
+
+  offline-pack:
+    desc: "Create offline ZAP package"
+    cmds:
+      - "{{.ZAP_DOWNLOADER}} offline pack -o {{.OFFLINE_TAR}}"
+    status:
+      - test -d {{.UNPACK_DIR}}
+
+  offline-unpack:
+    desc: "Unpack ZAP"
+    cmds:
+      - "{{.ZAP_DOWNLOADER}} offline unpack -i {{.OFFLINE_TAR}} -o {{.UNPACK_DIR}}"
+    status:
+      - test -d {{.UNPACK_DIR}}
+
+  install-addon:
+    desc: "Install .zap add-on into unpacked ZAP"
+    cmds:
+      - |
+        ZAP_FILE=$(ls build/zapAddOn/bin/*.zap | head -n 1)
+        if [ -z "$ZAP_FILE" ]; then echo "No .zap file found"; exit 1; fi
+        PLUGIN_DIR=$(find {{.UNPACK_DIR}} -type d -name plugin | head -n 1)
+        cp "$ZAP_FILE" "$PLUGIN_DIR"
+        echo "Installed $ZAP_FILE → $PLUGIN_DIR"
+
+  patch-toml:
+    desc: "Patch TOML for ZGC compatibility"
+    cmds:
+      - |
+        TOML=$(find {{.UNPACK_DIR}} -name default.toml | head -n 1)
+        if [ -z "$TOML" ]; then echo "No default.toml found"; exit 0; fi
+        if grep -q "UseZGC" "$TOML" && ! grep -q "UnlockExperimentalVMOptions" "$TOML"; then
+          sed -i 's/-XX:+UseZGC/-XX:+UnlockExperimentalVMOptions",\n  "-XX:+UseZGC/' "$TOML"
+          echo "Patched TOML"
+        else
+          echo "No patch needed"
+        fi
+
+  start-daemon:
+    desc: "Start ZAP daemon"
+    cmds:
+      - |
+        rm -f {{.UNPACK_DIR}}/workspace/.zap/.homelock || true
+        TOML=$(find {{.UNPACK_DIR}} -name default.toml | head -n 1)
+        if [ -n "$TOML" ]; then
+          {{.ZAP_DOWNLOADER}} daemon start -t "$TOML"
+        else
+          {{.ZAP_DOWNLOADER}} daemon start -d {{.UNPACK_DIR}}
+        fi

@@ -10,9 +10,19 @@
     "install:firefox": "playwright install firefox",
     "install:webkit": "playwright install webkit",
     "doctor": "playwright doctor",
-    "clean:browsers": "playwright uninstall"
+    "clean:browsers": "playwright uninstall",
+    "dev": "node --import tsx scripts/dev.ts",
+    "test": ""
   },
   "devDependencies": {
-    "playwright": "^1.44.0"
+    "@mockholm/zap-downloader": "^1.0.11",
+    "@types/node": "^25.9.0",
+    "glob": "^13.0.6",
+    "path": "^0.12.7",
+    "playwright": "^1.44.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.22.1",
+    "typescript": "^6.0.3",
+    "url": "^0.11.4"
   }
 }

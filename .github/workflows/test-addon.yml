@@ -154,7 +154,7 @@ jobs:
       # -------------------------------
       - name: Trigger Playwright add-on API
         run: |
-          curl -s "http://127.0.0.1:8080/JSON/playwrightclient/action/runCrawlAndScan/?url=http://example.com" -o /tmp/out.json
+          curl -s "http://127.0.0.1:8080/JSON/playwrightclient/action/runCrawlAndScan?url=http://example.com" -o /tmp/out.json
           cat /tmp/out.json
 
       # -------------------------------
