@@ -18,8 +18,7 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
         super.hook(hook);
 
         // Add API endpoints if needed
-        // Use the HookApi to ensure the API implementor is registered correctly
-        hook.getHookApi().addApiImplementor(new PlaywrightClientApi(this));
+        hook.addApiImplementor(new PlaywrightClientApi(this));
     }
 
     public void runCrawlAndScan(String baseUrl) {
