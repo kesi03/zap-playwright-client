@@ -213,6 +213,14 @@ jobs:
           curl -s "http://127.0.0.1:8080/JSON/playwrightclient/action/runCrawlAndScan?url=http://example.com" -o /tmp/out.json
           cat /tmp/out.json
 
+      - name: Upload ZAP log after run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-log-after-run
+          path: zap-downloader/apps/zap-downloader-node/test-unpack/workspace/.zap/zap.log
+          retention-days: 7
+
       # -------------------------------
       # STOP DAEMON
       # -------------------------------
