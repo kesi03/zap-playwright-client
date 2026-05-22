@@ -151,11 +151,10 @@ jobs:
 
       - name: Upload full ZAP log (CI)
         if: always()
-        working-directory: zap-downloader/apps/zap-downloader-node
         uses: actions/upload-artifact@v4
         with:
           name: zap-log
-          path: test-unpack/workspace/.zap/zap.log
+          path: zap-downloader/apps/zap-downloader-node/test-unpack/workspace/.zap/zap.log
           retention-days: 7
 
       # -------------------------------
