@@ -121,13 +121,17 @@ jobs:
       # -------------------------------
       # INSTALL PLAYWRIGHT BROWSERS
       # -------------------------------
+      - name: Install root pnpm dependencies
+        run: |
+          # Install dev dependencies declared in the repo root (includes Playwright)
+          pnpm install
+
       - name: Install Playwright browsers and OS dependencies
-        working-directory: zap-downloader/apps/zap-downloader-node
         run: |
           set -e
           # Ensure a stable Playwright version matching the Java dependency is installed and browsers downloaded
-          mkdir -p test-unpack/workspace/.playwright
-          export PLAYWRIGHT_BROWSERS_PATH=$(pwd)/test-unpack/workspace/.playwright
+          mkdir -p zap-downloader/apps/zap-downloader-node/test-unpack/workspace/.playwright
+          export PLAYWRIGHT_BROWSERS_PATH=$(pwd)/zap-downloader/apps/zap-downloader-node/test-unpack/workspace/.playwright
 
           # Install common system dependencies for Playwright on ubuntu-latest
           export DEBIAN_FRONTEND=noninteractive
@@ -157,15 +161,9 @@ jobs:
             gnupg \
             libxcb1 || true
 
-          # Ensure pnpm dependencies are installed first
-          pnpm install
-
-          # Ensure the Playwright package is installed locally with the exact version using pnpm
-          pnpm add playwright@1.44.0
-
-          # Use pnpm exec to run Playwright installs (browser download)
-          pnpm exec playwright install-deps
-          pnpm exec playwright install --with-deps
+          # Use pnpm exec from repo root (playwright is installed in root devDependencies)
+          pnpm exec playwright install-deps || true
+          pnpm exec playwright install --with-deps || true
 
           echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"
           echo "Contents of PLAYWRIGHT_BROWSERS_PATH:"
