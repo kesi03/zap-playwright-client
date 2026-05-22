@@ -157,18 +157,18 @@ jobs:
             gnupg \
             libxcb1 || true
 
-          # Ensure the Playwright package is installed locally with the exact version
-          npm install --no-save playwright@1.44.0 || pnpm add --no-frozen-lockfile playwright@1.44.0 || true
+          # Ensure the Playwright package is installed locally with the exact version using pnpm
+          pnpm add --no-frozen-lockfile playwright@1.44.0 || true
 
-          # Use the exact Playwright binary via npx with version to avoid npx auto-installing latest
-          npx playwright@1.44.0 install-deps || true
-          npx playwright@1.44.0 install --with-deps || true
+          # Use pnpm exec to run Playwright installs (browser download)
+          pnpm exec playwright install-deps || true
+          pnpm exec playwright install --with-deps || true
 
           echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"
           echo "Contents of PLAYWRIGHT_BROWSERS_PATH:"
           ls -la "$PLAYWRIGHT_BROWSERS_PATH" || true
           echo "Playwright version:"
-          npx playwright@1.44.0 --version || true
+          pnpm exec playwright --version || true
 
       # -------------------------------
       # START ZAP DAEMON
