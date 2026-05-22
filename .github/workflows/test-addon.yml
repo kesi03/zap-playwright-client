@@ -157,9 +157,12 @@ jobs:
             gnupg \
             libxcb1 || true
 
+          # Ensure the Playwright package is available locally so npx can run it
+          pnpm add --no-frozen-lockfile playwright@1.44.0 || npm i --no-save playwright@1.44.0 || true
+
           # Let Playwright install any remaining deps and download browsers
           npx playwright@1.44.0 install-deps || true
-          npx playwright@1.44.0 install || true
+          npx playwright@1.44.0 install --with-deps || true
 
           echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"
           echo "Contents of PLAYWRIGHT_BROWSERS_PATH:"
