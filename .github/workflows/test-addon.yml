@@ -132,7 +132,7 @@ jobs:
           mkdir -p test-unpack/workspace/.playwright
           export PLAYWRIGHT_BROWSERS_PATH=$(pwd)/test-unpack/workspace/.playwright
           # Install and download browsers (includes required system deps)
-          npx playwright@1.44.0 install --with-deps --path "$PLAYWRIGHT_BROWSERS_PATH"
+          npx playwright@1.44.0 install --with-deps
 
       # -------------------------------
       # START ZAP DAEMON
