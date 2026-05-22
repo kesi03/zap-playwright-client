@@ -4,6 +4,7 @@ import org.parosproxy.paros.extension.ExtensionAdaptor;
 import org.parosproxy.paros.extension.ExtensionHook;
 import org.parosproxy.paros.model.Model;
 import org.parosproxy.paros.network.ConnectionParam;
+import org.zaproxy.zap.extension.api.API;
 
 public class ExtensionPlaywrightClient extends ExtensionAdaptor {
 
@@ -18,7 +19,13 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
         super.hook(hook);
 
         // Add API endpoints if needed
-        hook.addApiImplementor(new PlaywrightClientApi(this));
+        PlaywrightClientApi api = new PlaywrightClientApi(this);
+        hook.addApiImplementor(api);
+        try {
+            API.getInstance().registerApiImplementor(api);
+        } catch (Exception e) {
+            // Registration via API singleton is optional; ignore failures
+        }
     }
 
     public void runCrawlAndScan(String baseUrl) {
