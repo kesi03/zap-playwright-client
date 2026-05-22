@@ -123,6 +123,18 @@ jobs:
           fi
 
       # -------------------------------
+      # INSTALL PLAYWRIGHT BROWSERS
+      # -------------------------------
+      - name: Install Playwright browsers
+        working-directory: zap-downloader/apps/zap-downloader-node
+        run: |
+          # Ensure a stable Playwright version matching the Java dependency is installed and browsers downloaded
+          mkdir -p test-unpack/workspace/.playwright
+          export PLAYWRIGHT_BROWSERS_PATH=$(pwd)/test-unpack/workspace/.playwright
+          # Install and download browsers (includes required system deps)
+          npx playwright@1.44.0 install --with-deps --path "$PLAYWRIGHT_BROWSERS_PATH"
+
+      # -------------------------------
       # START ZAP DAEMON
       # -------------------------------
       - name: Start daemon
