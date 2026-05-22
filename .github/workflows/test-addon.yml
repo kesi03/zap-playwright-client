@@ -140,6 +140,7 @@ jobs:
             ca-certificates \
             fonts-liberation \
             libasound2 \
+            libasound2t64 \
             libatk1.0-0 \
             libatk-bridge2.0-0 \
             libcups2 \
@@ -159,7 +160,9 @@ jobs:
             libegl1 \
             wget \
             gnupg \
-            libxcb1 || true
+            libxcb1 \
+            libffi8 \
+            libx264-dev || true
 
           # Use pnpm exec from repo root (playwright is installed in root devDependencies)
           pnpm exec playwright install-deps || true
