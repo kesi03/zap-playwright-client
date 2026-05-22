@@ -1,7 +1,7 @@
 package org.zaproxy.addon.playwrightclient;
 
 import org.zaproxy.zap.extension.api.*;
-import org.json.JSONObject;
+import net.sf.json.JSONObject;
 
 public class PlaywrightClientApi extends ApiImplementor {
 
@@ -20,6 +20,7 @@ public class PlaywrightClientApi extends ApiImplementor {
         return PREFIX;
     }
 
+    @Override
     public ApiResponse handleApiAction(String name, JSONObject params) throws ApiException {
         if (ACTION_RUN.equals(name)) {
             String url = params.getString("url");
