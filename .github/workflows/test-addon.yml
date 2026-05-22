@@ -2,10 +2,6 @@ name: Test Playwright Client Add-on
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main,master]
-  pull_request:
-    branches: [main,master]
 
 jobs:
   test-addon:
