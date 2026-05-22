@@ -157,6 +157,9 @@ jobs:
             gnupg \
             libxcb1 || true
 
+          # Ensure pnpm dependencies are installed first
+          pnpm install || true
+
           # Ensure the Playwright package is installed locally with the exact version using pnpm
           pnpm add --no-frozen-lockfile playwright@1.44.0 || true
 
