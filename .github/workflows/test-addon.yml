@@ -146,8 +146,17 @@ jobs:
           npx pm2 list || true
           echo "=== Java processes ==="
           ps aux | grep java || true
-          echo "=== ZAP log ==="
+          echo "=== ZAP log (head -100) ==="
           cat test-unpack/workspace/.zap/zap.log | head -100 || true
+
+      - name: Upload full ZAP log (CI)
+        if: always()
+        working-directory: zap-downloader/apps/zap-downloader-node
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-log
+          path: test-unpack/workspace/.zap/zap.log
+          retention-days: 7
 
       # -------------------------------
       # TRIGGER PLAYWRIGHT ADD-ON
