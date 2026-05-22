@@ -141,6 +141,9 @@ jobs:
         working-directory: zap-downloader/apps/zap-downloader-node
         run: |
           TOML=$(find test-unpack -name default.toml | head -1)
+          # Ensure Playwright browsers are discoverable by Playwright Java
+          export PLAYWRIGHT_BROWSERS_PATH="$(pwd)/test-unpack/workspace/.playwright"
+          export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
           pnpm ts-node src/index.ts daemon start -t "$TOML"
 
       - name: Wait for daemon
