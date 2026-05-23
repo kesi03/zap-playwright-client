@@ -27,7 +27,7 @@ dependencies {
     compileOnly("org.zaproxy:zap:2.15.0")
 
     // Playwright for Java
-    implementation("com.microsoft.playwright:playwright:1.44.0")
+    implementation("com.microsoft.playwright:playwright:1.59.0")
     implementation("org.json:json:20230227")
 
     // Logging
