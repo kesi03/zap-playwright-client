@@ -236,6 +236,16 @@ jobs:
           path: zap-downloader/apps/zap-downloader-node/test-unpack/workspace/.zap/zap.log
           retention-days: 7
 
+      - name: Upload Playwright client error log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwrightclient-error-log
+          path: |
+            /tmp/playwrightclient-error.log
+            zap-downloader/apps/zap-downloader-node/test-unpack/workspace/.zap/playwrightclient-error.log
+          retention-days: 7
+
       # -------------------------------
       # STOP DAEMON
       # -------------------------------
