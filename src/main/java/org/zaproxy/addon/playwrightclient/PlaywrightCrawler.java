@@ -3,6 +3,8 @@ package org.zaproxy.addon.playwrightclient;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.Proxy;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PlaywrightCrawler {
 
@@ -20,13 +22,18 @@ public class PlaywrightCrawler {
     }
 
     public Set<String> crawl() {
+        final Logger LOGGER = LoggerFactory.getLogger(PlaywrightCrawler.class);
+        LOGGER.info("Starting crawl for baseUrl: {}", baseUrl);
+
         try (Playwright pw = Playwright.create()) {
+            LOGGER.info("Playwright instance created: {}", pw.getClass().getName());
 
             BrowserType.LaunchOptions opts = new BrowserType.LaunchOptions()
                 .setHeadless(true)
                 .setProxy(new Proxy(zapProxy));
 
             Browser browser = pw.chromium().launch(opts);
+            LOGGER.info("Browser launched");
             BrowserContext context = browser.newContext();
 
             context.onRequest(req -> discoveredUrls.add(req.url()));
@@ -42,8 +49,13 @@ public class PlaywrightCrawler {
                 try {
                     page.navigate(url);
                     extractLinks(page);
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    LOGGER.warn("Navigation failed for {}: {}", url, e.getMessage());
+                }
             }
+        } catch (Exception e) {
+            LoggerFactory.getLogger(PlaywrightCrawler.class).error("Playwright crawler failed", e);
+            throw e;
         }
 
         return discoveredUrls;
