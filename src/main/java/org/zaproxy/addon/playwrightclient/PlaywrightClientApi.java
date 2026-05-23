@@ -27,14 +27,34 @@ public class PlaywrightClientApi extends ApiImplementor {
 
     @Override
     public ApiResponse handleApiAction(String name, JSONObject params) throws ApiException {
+        LOGGER.info("handleApiAction called: {} with params: {}", name, params == null ? "null" : params.toString());
+
         if (ACTION_RUN.equals(name)) {
             String url = params.getString("url");
             try {
                 ext.runCrawlAndScan(url);
                 return new ApiResponseElement("result", "started");
-            } catch (Exception e) {
-                LOGGER.error("API action runCrawlAndScan failed", e);
-                throw new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
+            } catch (Throwable t) {
+                // Log via SLF4J
+                LOGGER.error("API action runCrawlAndScan failed", t);
+                // Also print to stderr to ensure CI captures it (some runners capture stderr separately)
+                t.printStackTrace(System.err);
+
+                // Attempt to write stacktrace to a temp file inside ZAP workspace if possible
+                try {
+                    String tmp = System.getProperty("java.io.tmpdir");
+                    java.io.File out = new java.io.File(tmp, "playwrightclient-error.log");
+                    try (java.io.PrintWriter pw = new java.io.PrintWriter(new java.io.FileWriter(out, true))) {
+                        pw.println("--- PlaywrightClientApi error at " + new java.util.Date() + " ---");
+                        t.printStackTrace(pw);
+                        pw.println();
+                    }
+                    LOGGER.info("Wrote error stacktrace to {}", out.getAbsolutePath());
+                } catch (Exception writeEx) {
+                    LOGGER.warn("Failed to write stacktrace to temp file", writeEx);
+                }
+
+                throw new ApiException(ApiException.Type.INTERNAL_ERROR, t.getMessage());
             }
         }
 
