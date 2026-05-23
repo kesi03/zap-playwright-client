@@ -45,7 +45,7 @@ tasks.test {
 tasks.shadowJar {
     archiveClassifier.set("")
     mergeServiceFiles()
-    minimize()
+    // Do not minimize: keep all Playwright driver resources needed at runtime
 }
 
 
