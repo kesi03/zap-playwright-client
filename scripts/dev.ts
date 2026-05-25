@@ -1,15 +1,15 @@
-import { execa } from "execa";
 import { copyFileSync, readFileSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnSync } from "node:child_process";
 import { globSync } from "glob";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const ZAP_DOWNLOADER = "zap-downloader";
+const ZAP_DOWNLOADER = join(ROOT, "node_modules", "@mockholm", "zap-downloader", "dist", "index.js");
 const OFFLINE_TAR = "zap-offline.tar";
 const UNPACK_DIR = "./zap-dev-install";
 
-async function step(label: string, fn: () => Promise<void>) {
+async function step(label: string, fn: () => void) {
   console.log(`\n=== ${label} ===`);
   try {
     await fn();
@@ -20,23 +20,27 @@ async function step(label: string, fn: () => Promise<void>) {
   }
 }
 
-async function buildAddon() {
-  const gradleCmd = join(ROOT, process.platform === "win32" ? "gradlew.bat" : "gradlew");
-  await execa(gradleCmd, ["build"], { stdio: "inherit", cwd: ROOT });
+function buildAddon() {
+  const isWin = process.platform === "win32";
+  const gradleCmd = join(ROOT, isWin ? "gradlew.bat" : "gradlew");
+  const result = spawnSync(gradleCmd, ["build"], { stdio: "inherit", cwd: ROOT, shell: isWin });
+  if (result.status !== 0) throw new Error(`gradlew build failed with exit code ${result.status}`);
 }
 
-async function offlinePack() {
-  await execa(ZAP_DOWNLOADER, ["offline", "pack", "-o", OFFLINE_TAR], {
+function offlinePack() {
+  const result = spawnSync(process.execPath, [ZAP_DOWNLOADER, "offline", "pack", "-o", OFFLINE_TAR], {
     stdio: "inherit",
     cwd: ROOT,
   });
+  if (result.status !== 0) throw new Error(`zap-downloader offline pack failed with exit code ${result.status}`);
 }
 
-async function offlineUnpack() {
-  await execa(ZAP_DOWNLOADER, ["offline", "unpack", "-i", OFFLINE_TAR, "-o", UNPACK_DIR], {
+function offlineUnpack() {
+  const result = spawnSync(process.execPath, [ZAP_DOWNLOADER, "offline", "unpack", "-i", OFFLINE_TAR, "-o", UNPACK_DIR], {
     stdio: "inherit",
     cwd: ROOT,
   });
+  if (result.status !== 0) throw new Error(`zap-downloader offline unpack failed with exit code ${result.status}`);
 }
 
 function findPluginDir(): string | null {
@@ -95,20 +99,17 @@ function cleanHomeLock() {
   }
 }
 
-async function startDaemon() {
+function startDaemon() {
   cleanHomeLock();
   const tomlFile = findTomlFile();
-  if (tomlFile) {
-    await execa(ZAP_DOWNLOADER, ["daemon", "start", "-t", tomlFile], {
-      stdio: "inherit",
-      cwd: ROOT,
-    });
-  } else {
-    await execa(ZAP_DOWNLOADER, ["daemon", "start", "-d", join(ROOT, UNPACK_DIR)], {
-      stdio: "inherit",
-      cwd: ROOT,
-    });
-  }
+  const args = tomlFile
+    ? ["daemon", "start", "-t", tomlFile]
+    : ["daemon", "start", "-d", join(ROOT, UNPACK_DIR)];
+  const result = spawnSync(process.execPath, [ZAP_DOWNLOADER, ...args], {
+    stdio: "inherit",
+    cwd: ROOT,
+  });
+  if (result.status !== 0) throw new Error(`zap-downloader daemon start failed with exit code ${result.status}`);
 }
 
 async function main() {

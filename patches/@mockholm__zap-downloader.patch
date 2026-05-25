@@ -1,0 +1,22 @@
+diff --git a/dist/commands/daemon/start.js b/dist/commands/daemon/start.js
+index 688e752412fc3fd9d99a8d1b81af7aa08a824368..eb8a136f33db8aa8aac4d5c6358352946c3f91f2 100644
+--- a/dist/commands/daemon/start.js
++++ b/dist/commands/daemon/start.js
+@@ -226,7 +226,7 @@ exports.startDaemonCommand = {
+         else {
+             javaOptions.push('-Xmx2g');
+         }
+-        javaOptions.push(`-Djava.io.tmpdir="${absTmpDir}"`);
++        javaOptions.push(`-Djava.io.tmpdir=${absTmpDir}`);
+         const configFlags = [];
+         if (useToml && config.CONFIG?.flags) {
+             configFlags.push(...config.CONFIG.flags);
+@@ -236,7 +236,7 @@ exports.startDaemonCommand = {
+         }
+         const javaArgs = [
+             ...javaOptions,
+-            `-Djava.io.tmpdir="${absTmpDir}"`,
++            `-Djava.io.tmpdir=${absTmpDir}`,
+             '-jar', absJarPath,
+             '-daemon',
+             '-dir', absZapDir,

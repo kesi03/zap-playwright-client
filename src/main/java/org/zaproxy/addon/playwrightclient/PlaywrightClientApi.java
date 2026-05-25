@@ -40,10 +40,16 @@ public class PlaywrightClientApi extends ApiImplementor {
                 // Also print to stderr to ensure CI captures it (some runners capture stderr separately)
                 t.printStackTrace(System.err);
 
-                // Attempt to write stacktrace to a temp file inside ZAP workspace if possible
+                // Attempt to write stacktrace to ZAP workspace dir
                 try {
-                    String tmp = System.getProperty("java.io.tmpdir");
-                    java.io.File out = new java.io.File(tmp, "playwrightclient-error.log");
+                    String ws = System.getProperty("java.io.tmpdir", ".");
+                    ws = ws.replace("\"", "").trim();
+                    java.io.File dir = new java.io.File(ws);
+                    if (!dir.isAbsolute()) {
+                        dir = new java.io.File(System.getProperty("user.dir", "."), ws);
+                    }
+                    dir.mkdirs();
+                    java.io.File out = new java.io.File(dir, "playwrightclient-error.log");
                     try (java.io.PrintWriter pw = new java.io.PrintWriter(new java.io.FileWriter(out, true))) {
                         pw.println("--- PlaywrightClientApi error at " + new java.util.Date() + " ---");
                         t.printStackTrace(pw);

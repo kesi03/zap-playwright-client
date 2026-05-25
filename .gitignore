@@ -8,3 +8,10 @@ bin
 gradle-8.5-all.zip
 gradle-8.5-bin.zip
 node_modules
+
+# APM dependencies
+apm_modules/
+zap-dev-install
+.classpath
+.project
+zap-offline.tar

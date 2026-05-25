@@ -4,13 +4,18 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  '@mockholm/zap-downloader':
+    hash: mwocbxygfqtz5y4txlzdx5x5q4
+    path: patches/@mockholm__zap-downloader.patch
+
 importers:
 
   .:
     devDependencies:
       '@mockholm/zap-downloader':
         specifier: ^1.0.11
-        version: 1.0.11(@types/node@25.9.0)
+        version: 1.0.11(patch_hash=mwocbxygfqtz5y4txlzdx5x5q4)(@types/node@25.9.0)
       '@types/node':
         specifier: ^25.9.0
         version: 25.9.0
@@ -21,8 +26,8 @@ importers:
         specifier: ^0.12.7
         version: 0.12.7
       playwright:
-        specifier: ^1.44.0
-        version: 1.60.0
+        specifier: 1.59.0
+        version: 1.59.0
       ts-node:
         specifier: ^10.9.2
         version: 10.9.2(@types/node@25.9.0)(typescript@6.0.3)
@@ -993,13 +998,13 @@ packages:
     resolution: {integrity: sha512-g0VU+y08pKw5M8EZ2rIGiEBaB8wrQMjYGFfW2QVIfyT8V+fq8YFLkvlz4bz5ljvFDJYNFCWT3PWqcRr2FKO81w==}
     engines: {node: '>=10'}
 
-  playwright-core@1.60.0:
-    resolution: {integrity: sha512-9bW6zvX/m0lEbgTKJ6YppOKx8H3VOPBMOCFh2irXFOT4BbHgrx5hPjwJYLT40Lu+4qtD36qKc/Hn56StUW57IA==}
+  playwright-core@1.59.0:
+    resolution: {integrity: sha512-PW/X/IoZ6BMUUy8rpwHEZ8Kc0IiLIkgKYGNFaMs5KmQhcfLILNx9yCQD0rnWeWfz1PNeqcFP1BsihQhDOBCwZw==}
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.60.0:
-    resolution: {integrity: sha512-hheHdokM8cdqCb0lcE3s+zT4t4W+vvjpGxsZlDnikarzx8tSzMebh3UiFtgqwFwnTnjYQcsyMF8ei2mCO/tpeA==}
+  playwright@1.59.0:
+    resolution: {integrity: sha512-wihGScriusvATUxmhfENxg0tj1vHEFeIwxlnPFKQTOQVd7aG08mUfvvniRP/PtQOC+2Bs52kBOC/Up1jTXeIbw==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -1454,7 +1459,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@mockholm/zap-downloader@1.0.11(@types/node@25.9.0)':
+  '@mockholm/zap-downloader@1.0.11(patch_hash=mwocbxygfqtz5y4txlzdx5x5q4)(@types/node@25.9.0)':
     dependencies:
       '@iarna/toml': 2.2.5
       axios: 1.16.1
@@ -2260,11 +2265,11 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
-  playwright-core@1.60.0: {}
+  playwright-core@1.59.0: {}
 
-  playwright@1.60.0:
+  playwright@1.59.0:
     dependencies:
-      playwright-core: 1.60.0
+      playwright-core: 1.59.0
     optionalDependencies:
       fsevents: 2.3.2
 

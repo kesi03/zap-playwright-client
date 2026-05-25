@@ -40,9 +40,7 @@ public class PlaywrightTestRunner {
                     List<OwaspTestFinding> findings = OwaspTestSuite.runAll(page, context, baseUrl);
 
                     for (OwaspTestFinding f : findings) {
-                        String evidence = f.evidence != null ? f.evidence : f.description;
-                        String alertUrl = (f.url != null && !f.url.isEmpty()) ? f.url : url;
-                        alertService.createAlert(alertUrl, evidence);
+                        alertService.createAlert(f);
                     }
 
                     page.close();

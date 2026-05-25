@@ -32,14 +32,6 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
     }
 
     private String getZapProxy() {
-        ConnectionParam conn = Model.getSingleton().getOptionsParam().getConnectionParam();
-        String host = conn.getProxyChainName();
-        int port = conn.getProxyChainPort();
-
-        if (host == null || host.isEmpty()) {
-            host = "localhost"; // fallback
-        }
-
-        return "http://" + host + ":" + port;
+        return "localhost:8080";
     }
 }

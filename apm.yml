@@ -1,0 +1,12 @@
+name: zap-playwright-client
+version: 1.0.0
+description: APM project for zap-playwright-client
+author: kester simm
+targets:
+- copilot
+- opencode
+dependencies:
+  apm: []
+  mcp: []
+includes: auto
+scripts: {}
