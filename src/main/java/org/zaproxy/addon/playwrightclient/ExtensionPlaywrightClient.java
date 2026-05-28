@@ -1,11 +1,20 @@
 package org.zaproxy.addon.playwrightclient;
 
+import com.microsoft.playwright.*;
+import com.microsoft.playwright.options.Proxy;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import org.parosproxy.paros.Constant;
 import org.parosproxy.paros.extension.ExtensionAdaptor;
 import org.parosproxy.paros.extension.ExtensionHook;
-import org.parosproxy.paros.model.Model;
-import org.parosproxy.paros.network.ConnectionParam;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ExtensionPlaywrightClient extends ExtensionAdaptor {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExtensionPlaywrightClient.class);
 
     public static final String NAME = "ExtensionPlaywrightClient";
 
@@ -17,7 +26,6 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
     public void hook(ExtensionHook hook) {
         super.hook(hook);
 
-        // Add API endpoints if needed
         hook.addApiImplementor(new PlaywrightClientApi(this));
     }
 
@@ -26,9 +34,44 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
         PlaywrightCrawler crawler = new PlaywrightCrawler(baseUrl, zapProxy);
         var urls = crawler.crawl();
 
-        // Run Playwright tests against discovered URLs and create ZAP alerts
         PlaywrightTestRunner runner = new PlaywrightTestRunner(zapProxy);
         runner.runTests(urls, baseUrl);
+    }
+
+    public Path takeScreenshot(String url) {
+        String zapProxy = getZapProxy();
+        Path dir = getScreenshotDir();
+        dir.toFile().mkdirs();
+
+        String ts = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String safeName = url.replaceAll("[^a-zA-Z0-9.-]", "_");
+        Path out = dir.resolve(safeName + "_" + ts + ".png");
+
+        try (Playwright pw = Playwright.create()) {
+            BrowserType.LaunchOptions opts = new BrowserType.LaunchOptions()
+                .setHeadless(true)
+                .setProxy(new Proxy(zapProxy));
+            Browser browser = pw.chromium().launch(opts);
+            BrowserContext context = browser.newContext();
+            Page page = context.newPage();
+            page.navigate(url);
+            page.screenshot(new Page.ScreenshotOptions().setPath(out));
+            browser.close();
+            LOGGER.info("Saved screenshot to {}", out);
+        } catch (Exception e) {
+            LOGGER.error("Screenshot failed for {}: {}", url, e.getMessage());
+            throw new RuntimeException("Screenshot failed for " + url, e);
+        }
+
+        return out;
+    }
+
+    public Path getScreenshotDir() {
+        String home = Constant.getZapHome();
+        if (home == null) {
+            home = System.getProperty("user.home", ".");
+        }
+        return Paths.get(home, "screenshots");
     }
 
     private String getZapProxy() {
