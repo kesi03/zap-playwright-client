@@ -52,7 +52,7 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
                 .setHeadless(true)
                 .setProxy(new Proxy(zapProxy));
             Browser browser = pw.chromium().launch(opts);
-            BrowserContext context = browser.newContext();
+            BrowserContext context = browser.newContext(new Browser.NewContextOptions().setIgnoreHTTPSErrors(true));
             Page page = context.newPage();
             page.navigate(url);
             page.screenshot(new Page.ScreenshotOptions().setPath(out));

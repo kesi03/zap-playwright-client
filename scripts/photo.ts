@@ -6,7 +6,7 @@ import { globSync } from "glob";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const UNPACK_DIR = "./zap-dev-install";
-const TARGET_URL = "http://example.com";
+const TARGET_URL = "https://example.com";
 const ZAP_API = "http://127.0.0.1:8080";
 const OUT_DIR = join(ROOT, "test-photos");
 

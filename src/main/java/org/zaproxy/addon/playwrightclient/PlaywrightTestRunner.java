@@ -30,7 +30,7 @@ public class PlaywrightTestRunner {
                 .setProxy(new Proxy(zapProxy));
 
             Browser browser = pw.chromium().launch(opts);
-            BrowserContext context = browser.newContext();
+            BrowserContext context = browser.newContext(new Browser.NewContextOptions().setIgnoreHTTPSErrors(true));
 
             for (String url : urls) {
                 try {

@@ -34,7 +34,7 @@ public class PlaywrightCrawler {
 
             Browser browser = pw.chromium().launch(opts);
             LOGGER.info("Browser launched");
-            BrowserContext context = browser.newContext();
+            BrowserContext context = browser.newContext(new Browser.NewContextOptions().setIgnoreHTTPSErrors(true));
 
             context.onRequest(req -> discoveredUrls.add(req.url()));
 
