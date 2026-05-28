@@ -1,9 +1,10 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, unlinkSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync, execSync } from "node:child_process";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const UNPACK_DIR = "./zap-dev-install";
 const TARGET_URL = "http://example.com";
 const ZAP_API = "http://127.0.0.1:8080";
 const POLL_MS = 2000;
@@ -51,8 +52,17 @@ async function waitForZap(ms: number): Promise<boolean> {
   return false;
 }
 
+function cleanHomeLock() {
+  const lockFile = join(ROOT, UNPACK_DIR, "workspace", ".zap", ".homelock");
+  if (existsSync(lockFile)) {
+    try { unlinkSync(lockFile); console.log("Cleaned stale .homelock"); } catch {}
+  }
+}
+
 async function main() {
   console.log("=== Playwright Client Integration Test ===\n");
+
+  cleanHomeLock();
 
   if (!(await waitForZap(5000))) {
     console.log("ZAP not running – starting via npm run dev ...");

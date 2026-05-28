@@ -2,7 +2,7 @@ version: "3"
 
 vars:
   ROOT: "{{.TASKFILE_DIR}}"
-  ZAP_DOWNLOADER: "zap-downloader"
+  ZAP_DOWNLOADER: 'node "{{.ROOT}}/node_modules/@mockholm/zap-downloader/dist/index.js"'
   OFFLINE_TAR: "zap-offline.tar"
   UNPACK_DIR: "zap-dev-install"
 
@@ -10,6 +10,7 @@ tasks:
   default:
     desc: "Run full ZAP dev workflow"
     cmds:
+      - rm -f {{.UNPACK_DIR}}/workspace/.zap/.homelock || true
       - task: build-addon
       - task: offline-pack
       - task: offline-unpack

@@ -70,6 +70,13 @@ async function installAddon() {
   const target = join(pluginDir, zapBaseName);
   copyFileSync(zapFile, target);
   console.log(`Installed into ${target}`);
+
+  const homePluginDir = join(ROOT, UNPACK_DIR, "workspace", ".zap", "plugin");
+  if (existsSync(homePluginDir)) {
+    const homeTarget = join(homePluginDir, zapBaseName);
+    copyFileSync(zapFile, homeTarget);
+    console.log(`Installed into ${homeTarget}`);
+  }
 }
 
 async function patchToml() {
@@ -116,6 +123,7 @@ async function main() {
   console.log("ZAP Automation Template Manager — Dev Startup");
   console.log(`Root: ${ROOT}`);
 
+  cleanHomeLock();
   const devInstallExists = existsSync(join(ROOT, UNPACK_DIR));
   if (devInstallExists) {
     console.log(`\n${UNPACK_DIR} already exists — skipping offline pack/unpack`);
