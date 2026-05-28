@@ -12,7 +12,8 @@
     "doctor": "playwright doctor",
     "clean:browsers": "playwright uninstall",
     "dev": "node --import tsx scripts/dev.ts",
-    "test:integration": "node --import tsx scripts/integration.ts"
+    "test:integration": "node --import tsx scripts/integration.ts",
+    "test:photo": "node --import tsx scripts/photo.ts"
   },
   "devDependencies": {
     "@mockholm/zap-downloader": "^1.0.11",

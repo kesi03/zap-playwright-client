@@ -1,5 +1,6 @@
 package org.zaproxy.addon.playwrightclient;
 
+import org.parosproxy.paros.network.HttpMalformedHeaderException;
 import org.parosproxy.paros.network.HttpMessage;
 import org.zaproxy.zap.extension.api.*;
 import net.sf.json.JSONObject;
@@ -30,7 +31,7 @@ public class PlaywrightClientApi extends ApiImplementor {
 
         this.addApiAction(new ApiAction(ACTION_RUN, new String[]{"url"}));
         this.addApiAction(new ApiAction(ACTION_SCREENSHOT, new String[]{"url"}));
-        this.addApiOthers(new ApiOther(OTHER_SCREENSHOT, new String[]{"file"}, new String[]{"url"}));
+        this.addApiOthers(new ApiOther(OTHER_SCREENSHOT, new String[0], new String[]{"file", "url"}));
     }
 
     public String getPrefix() {
@@ -123,10 +124,15 @@ public class PlaywrightClientApi extends ApiImplementor {
         try {
             byte[] bytes = Files.readAllBytes(file.toPath());
             msg.setResponseBody(bytes);
-            msg.getResponseHeader().setContentLength(bytes.length);
-            msg.getResponseHeader().setHeader("Content-Type", "image/png");
+            try {
+                msg.setResponseHeader(
+                        API.getDefaultResponseHeader("image/png", bytes.length));
+            } catch (HttpMalformedHeaderException e) {
+                LOGGER.error("Failed to create response header: {}", e.getMessage(), e);
+                throw new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
+            }
         } catch (IOException e) {
-            LOGGER.error("Failed to read screenshot", e);
+            LOGGER.error("Failed to serve screenshot", e);
             throw new ApiException(ApiException.Type.INTERNAL_ERROR, e.getMessage());
         }
         return msg;
