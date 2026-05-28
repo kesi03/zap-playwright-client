@@ -55,18 +55,12 @@ public class PlaywrightAlertService {
             alertMsg.setRequestHeader(new HttpRequestHeader("GET " + url + " HTTP/1.1"));
             alertMsg.getResponseHeader().setStatusCode(200);
             Alert alert = new Alert(PLUGIN_ID);
-            alert.setDetail(
-                alertName,
-                description,
-                url,
-                "",
-                "",
-                "",
-                "",
-                "",
-                risk,
-                Alert.CONFIDENCE_MEDIUM,
-                alertMsg);
+            alert.setName(alertName);
+            alert.setDescription(description);
+            alert.setUri(url);
+            alert.setRisk(risk);
+            alert.setConfidence(Alert.CONFIDENCE_MEDIUM);
+            alert.setMessage(alertMsg);
             alert.setSource(Alert.Source.TOOL);
             alert.setCweId(mapCwe(finding.category));
             alert.setWascId(mapWasc(finding.category));
