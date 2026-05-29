@@ -3,11 +3,14 @@ package org.zaproxy.addon.playwrightclient;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
@@ -21,6 +24,11 @@ import org.zaproxy.addon.playwrightclient.owasp.OwaspTestFinding;
 public class UserScriptRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UserScriptRunner.class);
+
+    private static final String PLAYWRIGHT_VERSION = "1.59.0";
+    private static final String PLAYWRIGHT_MAVEN_URL =
+        "https://repo1.maven.org/maven2/com/microsoft/playwright/playwright/"
+        + PLAYWRIGHT_VERSION + "/playwright-" + PLAYWRIGHT_VERSION + ".jar";
 
     private final String targetUrl;
     private final String zapProxy;
@@ -71,6 +79,22 @@ public class UserScriptRunner {
             || name.endsWith(".kts") || name.endsWith(".groovy");
     }
 
+    private Path getPlaywrightJar() throws IOException {
+        Path cacheDir = Paths.get(
+                System.getProperty("user.home"), ".zap", "playwright-client", "lib");
+        Path jarPath = cacheDir.resolve("playwright-" + PLAYWRIGHT_VERSION + ".jar");
+        if (Files.exists(jarPath)) {
+            return jarPath;
+        }
+        Files.createDirectories(cacheDir);
+        LOGGER.info("Downloading Playwright {} JAR from Maven Central...", PLAYWRIGHT_VERSION);
+        try (InputStream in = new URL(PLAYWRIGHT_MAVEN_URL).openStream()) {
+            Files.copy(in, jarPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+        LOGGER.info("Playwright JAR cached at {}", jarPath);
+        return jarPath;
+    }
+
     private List<OwaspTestFinding> executeScript(Path script) throws Exception {
         String name = script.getFileName().toString().toLowerCase();
         Path outputFile = Files.createTempFile("user-script-", ".json");
@@ -81,7 +105,9 @@ public class UserScriptRunner {
         } else if (name.endsWith(".ts")) {
             cmd = List.of("npx", "tsx", script.toAbsolutePath().toString());
         } else if (name.endsWith(".java")) {
-            cmd = List.of("java", script.toAbsolutePath().toString());
+            Path pwJar = getPlaywrightJar();
+            cmd = List.of("java", "--class-path", pwJar.toAbsolutePath().toString(),
+                    script.toAbsolutePath().toString());
         } else if (name.endsWith(".kt")) {
             return runKotlinScript(script, outputFile);
         } else if (name.endsWith(".kts")) {
@@ -105,19 +131,24 @@ public class UserScriptRunner {
     }
 
     private List<OwaspTestFinding> runKotlinScript(Path script, Path outputFile) throws Exception {
+        Path pwJar = getPlaywrightJar();
         Path buildDir = Files.createTempDirectory("kotlin-build-");
         String className = script.getFileName().toString().replace(".kt", "");
         Path jarPath = buildDir.resolve(className + ".jar");
 
         List<String> compileCmd = List.of(
             "kotlinc", script.toAbsolutePath().toString(),
-            "-d", buildDir.toAbsolutePath().toString(),
-            "-include-runtime",
-            jarPath.toAbsolutePath().toString()
+            "-cp", pwJar.toAbsolutePath().toString(),
+            "-d", jarPath.toAbsolutePath().toString(),
+            "-include-runtime"
         );
         runProcess(compileCmd, script.getParent());
 
-        List<String> runCmd = new ArrayList<>(List.of("java", "-jar", jarPath.toAbsolutePath().toString()));
+        String mainClass = className + "Kt";
+        String sep = File.pathSeparator;
+        String classpath = jarPath.toAbsolutePath().toString() + sep + pwJar.toAbsolutePath().toString();
+
+        List<String> runCmd = new ArrayList<>(List.of("java", "-cp", classpath, mainClass));
         runCmd.add("--target-url");
         runCmd.add(targetUrl);
         runCmd.add("--proxy");
