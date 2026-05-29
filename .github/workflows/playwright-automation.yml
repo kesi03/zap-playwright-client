@@ -20,24 +20,129 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout add-on repo
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          path: addon
 
-      - name: Checkout zap-downloader
-        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          repository: kesi03/zap-downloader
-          path: zap-downloader
+          java-version: "21"
+          distribution: "temurin"
 
-      - name: Run Playwright automation
-        uses: ./addon/.github/actions/run-playwright-automation
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          target-url: ${{ inputs.target-url }}
-          addon-path: addon
-          zap-downloader-path: zap-downloader
-          scan-timeout: "300"
+          node-version: "20"
+
+      - name: Enable Corepack + pin pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+
+      - name: Build add-on
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x test
+          ADDON=$(ls build/zapAddOn/bin/*.zap 2>/dev/null | head -1 || true)
+          if [ -z "$ADDON" ]; then
+            ADDON=$(ls build/libs/*.jar 2>/dev/null | head -1 || true)
+          fi
+          if [ -z "$ADDON" ]; then
+            echo "No add-on artifact found"
+            exit 1
+          fi
+          echo "ADDON_PATH=$ADDON" >> $GITHUB_ENV
+          echo "Add-on artifact: $ADDON"
+
+      - name: Install npm dependencies
+        shell: bash
+        run: pnpm install
+
+      - name: Create offline ZAP package
+        shell: bash
+        run: |
+          pnpm exec zap-downloader offline pack -o zap-offline.tar
+          echo "OFFLINE_PACKAGE=zap-offline.tar" >> $GITHUB_ENV
+
+      - name: Unpack offline package
+        shell: bash
+        run: |
+          pnpm exec zap-downloader offline unpack \
+            -i "${{ env.OFFLINE_PACKAGE }}" \
+            -o zap-install
+          echo "UNPACK_DIR=zap-install" >> $GITHUB_ENV
+
+      - name: Install add-on into ZAP
+        shell: bash
+        run: |
+          PLUGIN_DIR=$(find zap-install -type d -name plugin | head -1)
+          echo "PLUGIN_DIR=$PLUGIN_DIR"
+          cp "${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
+
+      - name: Install Playwright browsers
+        shell: bash
+        run: |
+          PLAYWRIGHT_JAR=$(find ~/.gradle/caches -name 'playwright-*.jar' 2>/dev/null | head -1)
+          if [ -n "$PLAYWRIGHT_JAR" ]; then
+            java -cp "$PLAYWRIGHT_JAR" com.microsoft.playwright.CLI install chromium
+          else
+            echo "Playwright JAR not found in Gradle cache, trying via classpath..."
+            java -cp "$(./gradlew -q dependencies --configuration runtimeClasspath 2>/dev/null | grep -oP '\S*playwright-\d[\d.]*\.jar' | head -1)" com.microsoft.playwright.CLI install chromium 2>/dev/null || true
+          fi
+
+      - name: Patch TOML for ZGC compat
+        shell: bash
+        run: |
+          TOML=$(find zap-install -name default.toml | head -1)
+          if grep -q "UseZGC" "$TOML" 2>/dev/null && ! grep -q "UnlockExperimentalVMOptions" "$TOML" 2>/dev/null; then
+            sed -i '/-XX:+UseZGC/i\  "-XX:+UnlockExperimentalVMOptions",' "$TOML"
+          fi
+
+      - name: Create ZAP automation plan
+        shell: bash
+        run: |
+          cat > playwright-plan.yaml << 'EOF'
+          env:
+            contexts:
+              - name: "mainContext"
+                urls:
+                  - "{{TARGET_URL}}"
+                includePaths:
+                  - "{{TARGET_URL}}.*"
+          jobs:
+            - type: "passiveScan-config"
+              parameters:
+                maxAlertsPerRule: 0
+            - type: "spider"
+              parameters:
+                context: "mainContext"
+                url: "{{TARGET_URL}}"
+            - type: "spiderAjax"
+              parameters:
+                context: "mainContext"
+                url: "{{TARGET_URL}}"
+                maxDuration: 5
+            - type: "playwright"
+              parameters:
+                url: "{{TARGET_URL}}"
+                maxDepth: 5
+                maxDuration: 10
+          EOF
+          sed -i "s|{{TARGET_URL}}|${{ inputs.target-url }}|g" playwright-plan.yaml
+          echo "Generated automation plan:"
+          cat playwright-plan.yaml
+
+      - name: Start daemon and run automation plan
+        shell: bash
+        run: |
+          TOML=$(find zap-install -name default.toml | head -1)
+          pnpm exec zapr daemon autorun \
+            --plan playwright-plan.yaml \
+            --toml "$TOML" \
+            --dir zap-install \
+            --workspace zap-install/workspace
 
       - name: Display results
         if: always()
@@ -45,3 +150,16 @@ jobs:
           echo "## Playwright Client Automation Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Target:** ${{ inputs.target-url }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload ZAP log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-log
+          path: zap-install/workspace/.zap/zap.log
+          retention-days: 7
+
+      - name: Stop daemon
+        if: always()
+        shell: bash
+        run: pnpm exec zapr daemon stop || true
