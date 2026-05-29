@@ -221,12 +221,117 @@ jobs:
           retention-days: 7
 
       # -------------------------------
-      # TRIGGER PLAYWRIGHT ADD-ON
+      # TRIGGER PLAYWRIGHT ADD-ON — INTEGRATION TEST
       # -------------------------------
       - name: Trigger Playwright add-on API
+        id: trigger
         run: |
-          curl -s "http://127.0.0.1:8080/JSON/playwrightclient/action/runCrawlAndScan?url=http://example.com" -o /tmp/out.json
-          cat /tmp/out.json
+          RESPONSE=$(curl -s "http://127.0.0.1:8080/JSON/playwrightclient/action/runCrawlAndScan?url=http://example.com")
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" > /tmp/trigger-response.json
+
+          # Validate response is {"result": "started"}
+          RESULT=$(echo "$RESPONSE" | jq -r '.result')
+          if [ "$RESULT" != "started" ]; then
+            echo "FAIL: expected result=started, got $RESULT"
+            exit 1
+          fi
+          echo "PASS: API returned result=started"
+
+      - name: Wait for alerts in logs
+        id: wait_alerts
+        shell: bash
+        run: |
+          LOG_DIR="$HOME/.pm2/logs"
+          ERROR_LOG="$LOG_DIR/zap-daemon-error.log"
+          OUT_LOG="$LOG_DIR/zap-daemon-out.log"
+          POLL_S=2
+          TIMEOUT_S=120
+          DEADLINE=$((SECONDS + TIMEOUT_S))
+
+          # Capture initial log sizes
+          PREV_ERR=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
+          PREV_OUT=$(wc -l < "$OUT_LOG" 2>/dev/null || echo 0)
+
+          ALERTS_FOUND=0
+          while [ $SECONDS -lt $DEADLINE ]; do
+            ERR_LINES=$(tail -n +$((PREV_ERR + 1)) "$ERROR_LOG" 2>/dev/null || true)
+            OUT_LINES=$(tail -n +$((PREV_OUT + 1)) "$OUT_LOG" 2>/dev/null || true)
+            PREV_ERR=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
+            PREV_OUT=$(wc -l < "$OUT_LOG" 2>/dev/null || echo 0)
+
+            while IFS= read -r line; do
+              if echo "$line" | grep -qE "Created ZAP alert for"; then
+                echo "  [ALERT] $line"
+                ALERTS_FOUND=$((ALERTS_FOUND + 1))
+              fi
+            done < <(echo "$ERR_LINES"; echo "$OUT_LINES")
+
+            if [ $ALERTS_FOUND -gt 0 ]; then
+              break
+            fi
+            sleep $POLL_S
+          done
+
+          echo "ALERTS_FOUND=$ALERTS_FOUND" >> $GITHUB_OUTPUT
+          echo "Alerts found in logs: $ALERTS_FOUND"
+
+      - name: Cross-check alerts via ZAP API
+        run: |
+          ALERTS=$(curl -s "http://127.0.0.1:8080/JSON/core/view/alerts?baseurl=http://example.com&start=0&count=500")
+          COUNT=$(echo "$ALERTS" | jq '[.alerts[] // [] | select(.pluginId == "60101")] | length')
+          echo "Playwright alerts in ZAP (pluginId=60101): $COUNT"
+          echo "$ALERTS" | jq -r '.alerts[]? | select(.pluginId == "60101") | "  \(.alert) [\(.risk)] @ \(.url)"' || true
+
+          if [ "$COUNT" -eq "0" ]; then
+            echo "FAIL: no Playwright alerts created in ZAP"
+            exit 1
+          fi
+          echo "PASS: $COUNT Playwright alert(s) created"
+
+      # -------------------------------
+      # SCREENSHOT PHOTO TEST
+      # -------------------------------
+      - name: Take screenshot via API
+        id: screenshot
+        run: |
+          RESPONSE=$(curl -s "http://127.0.0.1:8080/JSON/playwrightclient/action/screenshotPage?url=http://example.com")
+          echo "Response: $RESPONSE"
+          FILE_PATH=$(echo "$RESPONSE" | jq -r '.result // empty')
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: screenshotPage did not return a file path"
+            exit 1
+          fi
+          echo "SCREENSHOT_FILE=$FILE_PATH" >> $GITHUB_ENV
+          echo "PASS: screenshot saved to $FILE_PATH"
+
+      - name: Download screenshot PNG
+        run: |
+          curl -s "http://127.0.0.1:8080/OTHER/playwrightclient/other/screenshot/?file=${{ env.SCREENSHOT_FILE }}" \
+            -o /tmp/screenshot.png
+
+      - name: Validate screenshot PNG
+        run: |
+          if [ ! -f /tmp/screenshot.png ]; then
+            echo "FAIL: screenshot PNG not downloaded"
+            exit 1
+          fi
+          SIZE=$(stat --format=%s /tmp/screenshot.png)
+          # Validate PNG header (first 8 bytes)
+          HEADER=$(xxd -l 8 -p /tmp/screenshot.png)
+          if [ "$HEADER" != "89504e470d0a1a0a" ]; then
+            echo "FAIL: invalid PNG header: $HEADER"
+            exit 1
+          fi
+          echo "PASS: valid PNG screenshot, $SIZE bytes"
+
+      - name: Upload screenshot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot
+          path: /tmp/screenshot.png
+          retention-days: 7
 
       - name: Upload ZAP log after run
         if: always()
