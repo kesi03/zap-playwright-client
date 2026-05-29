@@ -1,0 +1,62 @@
+name: "ZAP Security Scan with Playwright Client"
+description: >
+  Runs the zap-playwright-client add-on against a target,
+  then follows up with passive scan, active scan, and reporting.
+
+env:
+  contexts:
+    - name: "mainContext"
+      urls:
+        - "{{TARGET_URL}}"
+      includePaths:
+        - "{{TARGET_URL}}.*"
+
+jobs:
+  - type: "passiveScan-config"
+    parameters:
+      maxAlertsPerRule: 0
+
+  - type: "spider"
+    parameters:
+      context: "mainContext"
+      url: "{{TARGET_URL}}"
+
+  - type: "spiderAjax"
+    parameters:
+      context: "mainContext"
+      url: "{{TARGET_URL}}"
+      maxDuration: 5
+
+  - type: "playwright"
+    parameters:
+      url: "{{TARGET_URL}}"
+      maxDepth: 5
+      maxDuration: 10
+
+  - type: "activeScan"
+    parameters:
+      context: "mainContext"
+
+  - type: "report"
+    parameters:
+      title: "ZAP Security Scan Report"
+      template: "traditional-html"
+      reportDir: "../zap-results"
+      reportFile: "zap-report.html"
+      format: "html"
+
+  - type: "report"
+    parameters:
+      title: "ZAP Security Scan Report"
+      template: "traditional-json"
+      reportDir: "../zap-results"
+      reportFile: "zap-report.json"
+      format: "json"
+
+  - type: "report"
+    parameters:
+      title: "ZAP Security Scan Report"
+      template: "traditional-md"
+      reportDir: "../zap-results"
+      reportFile: "zap-report.md"
+      format: "md"

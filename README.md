@@ -320,6 +320,62 @@ The job will:
 
 **Dependency:** The `automation` add-on (version >= 0.4.0) must be installed in ZAP.
 
+## Example Automation Plan
+
+See `examples/playwright-automation.yaml` for a complete ZAP Automation Framework plan
+that chains Playwright with passive scan, AJAX spider, active scan, and reporting:
+
+```yaml
+jobs:
+  - type: "passiveScan-config"
+  - type: "spider"
+  - type: "spiderAjax"
+  - type: "playwright"       # <-- Playwright OWASP browser tests
+  - type: "activeScan"
+  - type: "report"
+```
+
+Run it with `@mockholm/zapr`:
+```bash
+pnpm zapr zap automate daemon --file examples/playwright-automation.yaml
+```
+
+---
+
+# 🤖 **CI/CD — GitHub Actions**
+
+Two GitHub Actions components are provided for CI/CD integration:
+
+## Reusable Workflow
+
+`.github/workflows/playwright-automation.yml` — can be triggered manually or called
+from another workflow:
+
+```yaml
+jobs:
+  playwright-scan:
+    uses: kesi03/zap-playwright-client/.github/workflows/playwright-automation.yml@main
+    with:
+      target-url: "http://my-app:3000"
+      target-service: "my-app:latest"
+```
+
+## Composite Action
+
+`.github/actions/run-playwright-automation/action.yml` — lower-level action that
+builds the add-on, starts ZAP daemon, triggers the Playwright scan, and waits
+for results. Can be used in custom workflows:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - name: Run Playwright automation
+    uses: ./addon/.github/actions/run-playwright-automation
+    with:
+      target-url: "http://localhost:3000"
+      scan-timeout: "300"
+```
+
 ---
 
 # 🛠 **Development Workflow (Taskfile)**

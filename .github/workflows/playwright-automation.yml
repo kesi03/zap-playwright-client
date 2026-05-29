@@ -1,0 +1,65 @@
+name: Playwright Client Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      target-url:
+        description: "Target URL to scan"
+        required: true
+        default: "http://localhost:3000"
+      target-service:
+        description: "Docker image for target service (optional)"
+        required: false
+        default: ""
+
+  workflow_call:
+    inputs:
+      target-url:
+        description: "Target URL to scan"
+        required: true
+        type: string
+      target-service:
+        description: "Docker image for target service (optional)"
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  playwright-automation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      target:
+        image: ${{ inputs.target-service }}
+        ports:
+          - 3000:3000
+        options: --shm-size=512m
+      if: inputs.target-service != ''
+
+    steps:
+      - name: Checkout add-on repo
+        uses: actions/checkout@v4
+        with:
+          path: addon
+
+      - name: Checkout zap-downloader
+        uses: actions/checkout@v4
+        with:
+          repository: kesi03/zap-downloader
+          path: zap-downloader
+
+      - name: Run Playwright automation
+        uses: ./addon/.github/actions/run-playwright-automation
+        with:
+          target-url: ${{ inputs.target-url }}
+          addon-path: addon
+          zap-downloader-path: zap-downloader
+          scan-timeout: "300"
+
+      - name: Display results
+        if: always()
+        run: |
+          echo "## Playwright Client Automation Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** ${{ inputs.target-url }}" >> $GITHUB_STEP_SUMMARY

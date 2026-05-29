@@ -1,0 +1,173 @@
+name: "Run Playwright Client Automation"
+description: "Build, install, and run the zap-playwright-client add-on against a target URL"
+
+inputs:
+  target-url:
+    description: "Target URL to scan with Playwright"
+    required: true
+  addon-path:
+    description: "Path to the add-on checkout"
+    default: "addon"
+  zap-downloader-path:
+    description: "Path to the zap-downloader checkout"
+    default: "zap-downloader"
+  zap-workspace-path:
+    description: "Path to the ZAP workspace inside zap-downloader"
+    default: "zap-downloader-test"
+  zap-port:
+    description: "ZAP proxy port"
+    default: "8080"
+  zap-api-key:
+    description: "ZAP API key"
+    default: "changeme"
+  scan-timeout:
+    description: "Seconds to wait for scan completion"
+    default: "180"
+  java-version:
+    description: "Java version"
+    default: "21"
+  node-version:
+    description: "Node.js version"
+    default: "20"
+
+outputs:
+  alert-count:
+    description: "Number of Playwright alerts created"
+    value: ${{ steps.wait_alerts.outputs.ALERTS_FOUND }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: "temurin"
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Enable Corepack + pin pnpm
+      shell: bash
+      run: |
+        corepack enable
+        corepack prepare pnpm@9.0.0 --activate
+
+    - name: Build add-on
+      shell: bash
+      working-directory: ${{ inputs.addon-path }}
+      run: |
+        chmod +x gradlew
+        ./gradlew build -x test
+        ADDON=$(ls build/zapAddOn/bin/*.zap 2>/dev/null | head -1 || true)
+        if [ -z "$ADDON" ]; then
+          ADDON=$(ls build/libs/*.jar 2>/dev/null | head -1 || true)
+        fi
+        if [ -z "$ADDON" ]; then
+          echo "No add-on artifact found"
+          exit 1
+        fi
+        echo "ADDON_PATH=$ADDON" >> $GITHUB_ENV
+        echo "Add-on artifact: $ADDON"
+
+    - name: Install zap-downloader dependencies
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: pnpm install
+
+    - name: Build zap-downloader
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: pnpm build
+
+    - name: Create offline package
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: |
+        pnpm offline:pack
+        PKG=$(ls zap-offline-*.tar | head -1)
+        echo "OFFLINE_PACKAGE=$PKG" >> $GITHUB_ENV
+
+    - name: Unpack offline package
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: |
+        pnpm ts-node src/index.ts offline unpack \
+          -i "${{ env.OFFLINE_PACKAGE }}" \
+          -o ${{ inputs.zap-workspace-path }}
+
+    - name: Install add-on into ZAP
+      shell: bash
+      run: |
+        PLUGIN_DIR=$(find ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node/${{ inputs.zap-workspace-path }} -type d -name plugin | head -1)
+        echo "PLUGIN_DIR=$PLUGIN_DIR"
+        cp "${{ inputs.addon-path }}/${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
+
+    - name: Patch TOML for ZGC compat
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: |
+        TOML=$(find ${{ inputs.zap-workspace-path }} -name default.toml | head -1)
+        if grep -q "UseZGC" "$TOML" && ! grep -q "UnlockExperimentalVMOptions" "$TOML"; then
+          sed -i '/-XX:+UseZGC/i\  "-XX:+UnlockExperimentalVMOptions",' "$TOML"
+        fi
+
+    - name: Start ZAP daemon
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: |
+        TOML=$(find ${{ inputs.zap-workspace-path }} -name default.toml | head -1)
+        pnpm ts-node src/index.ts daemon start -t "$TOML"
+
+    - name: Wait for daemon
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: pnpm ts-node src/index.ts daemon started --timeout 120 --host 127.0.0.1
+
+    - name: Trigger Playwright crawl and scan
+      shell: bash
+      run: |
+        RESPONSE=$(curl -s "http://127.0.0.1:${{ inputs.zap-port }}/JSON/playwrightclient/action/runCrawlAndScan?url=${{ inputs.target-url }}")
+        echo "Response: $RESPONSE"
+        RESULT=$(echo "$RESPONSE" | jq -r '.result')
+        if [ "$RESULT" != "started" ]; then
+          echo "FAIL: expected result=started, got $RESULT"
+          exit 1
+        fi
+        echo "PASS: API returned result=started"
+
+    - name: Wait for alerts
+      id: wait_alerts
+      shell: bash
+      run: |
+        POLL_S=5
+        DEADLINE=$((SECONDS + ${{ inputs.scan-timeout }}))
+        ALERTS_FOUND=0
+        while [ $SECONDS -lt $DEADLINE ]; do
+          RESPONSE=$(curl -s "http://127.0.0.1:${{ inputs.zap-port }}/JSON/core/view/alerts?baseurl=${{ inputs.target-url }}&start=0&count=500" 2>/dev/null || echo '{"alerts":[]}')
+          COUNT=$(echo "$RESPONSE" | jq '[.alerts[] // [] | select(.pluginId == "60101")] | length')
+          if [ "$COUNT" -gt 0 ]; then
+            ALERTS_FOUND=$COUNT
+            break
+          fi
+          echo "Waiting for alerts... (${SECONDS}s elapsed)"
+          sleep $POLL_S
+        done
+        echo "ALERTS_FOUND=$ALERTS_FOUND" >> $GITHUB_OUTPUT
+        echo "Alerts found: $ALERTS_FOUND"
+
+    - name: Upload ZAP log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: zap-log
+        path: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node/${{ inputs.zap-workspace-path }}/workspace/.zap/zap.log
+        retention-days: 7
+
+    - name: Stop daemon
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.zap-downloader-path }}/apps/zap-downloader-node
+      run: pnpm ts-node src/index.ts daemon stop || true
