@@ -86,7 +86,7 @@ This gives you **full-stack coverage**:
 
 # 🧪 **OWASP Browser-Side Tests Included**
 
-Below is a complete list of all **44** tests the suite performs, grouped by OWASP category.
+Below is a complete list of all **52** tests the suite performs, grouped by OWASP category.
 
 ---
 
@@ -95,6 +95,7 @@ Below is a complete list of all **44** tests the suite performs, grouped by OWAS
 - Open redirect detection (`redirect=`, `next=`, `returnUrl=`)
 - Weak password reset flow (missing email verification)
 - CSRF — session cookie missing `SameSite` attribute
+- Tabnabbing — `target="_blank"` links missing `rel="noopener noreferrer"`
 
 ---
 
@@ -120,6 +121,8 @@ Below is a complete list of all **44** tests the suite performs, grouped by OWAS
 - Prototype pollution indicators (`__proto__`)
 - DOM clobbering (`window["constructor"]`, `document["__proto__"]`)
 - Client-side path traversal (`/static/../etc/passwd`)
+- `innerHTML` / `document.write()` usage — possible DOM XSS vector
+- `document.domain` lowered — weakens same-origin policy
 
 ---
 
@@ -134,6 +137,7 @@ Below is a complete list of all **44** tests the suite performs, grouped by OWAS
 - Missing or weak CSP (`unsafe-inline`, `unsafe-eval`)
 - CSP nonce reuse
 - Missing X-Frame-Options / frame-ancestors (clickjacking)
+- Missing X-Content-Type-Options (`nosniff`) header
 - Missing Permissions-Policy header
 - Missing Cache-Control header
 - Weak iframe sandboxing
@@ -151,17 +155,21 @@ Below is a complete list of all **44** tests the suite performs, grouped by OWAS
 - React version leaked to the client
 - React hydration errors (console monitoring)
 - OAuth misconfiguration (`client_secret` or `clientId` in client-side code)
+- Known JavaScript library detection (jQuery, Angular, Vue, React, Backbone, Underscore, Moment, SocketIO, Bootstrap)
 
 ---
 
 ## 🔐 **A07 — Identification & Authentication Failures**
 - Login page missing password field
+- Login form submits credentials over HTTP
 - OAuth implicit flow detected (`access_token` in URL fragment)
 
 ---
 
 ## 🧱 **A08 — Software & Data Integrity Failures**
 - Insecure script loading (`http://cdn...`)
+- postMessage listener potentially lacking origin validation
+- External scripts loaded without SRI `integrity` attribute
 - Service Worker active (potential caching of sensitive data)
 
 ---
@@ -265,7 +273,7 @@ The PlaywrightClient add-on transforms ZAP into a **full browser-aware security 
 It provides:
 
 - A real browser  
-- A full OWASP test suite (44 tests)  
+- A full OWASP test suite (52 tests)  
 - SPA-aware crawling  
 - Automatic ZAP alert creation with CWE/WASC mappings  
 - Screenshot capture and retrieval  

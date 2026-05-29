@@ -54,6 +54,16 @@ public class OwaspTestSuite {
         all.addAll(Owasp_CSP_NonceReuse.test(page));
         all.addAll(Owasp_ThirdPartyWidgets.test(page));
 
+        // New tests (Batch 5)
+        all.addAll(Owasp_Tabnabbing.test(page));
+        all.addAll(Owasp_PostMessage_Origin.test(page));
+        all.addAll(Owasp_XContentTypeOptions.test(page));
+        all.addAll(Owasp_innerHTML_XSS.test(page));
+        all.addAll(Owasp_KnownVulnerableLibraries.test(page));
+        all.addAll(Owasp_LoginOverHTTP.test(page));
+        all.addAll(Owasp_MissingSRI.test(page));
+        all.addAll(Owasp_DocumentDomain.test(page));
+
         return all;
     }
 }
