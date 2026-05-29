@@ -6,36 +6,18 @@ on:
       target-url:
         description: "Target URL to scan"
         required: true
-        default: "http://localhost:3000"
-      target-service:
-        description: "Docker image for target service (optional)"
-        required: false
-        default: ""
-
+        default: "http://example.com"
   workflow_call:
     inputs:
       target-url:
         description: "Target URL to scan"
         required: true
         type: string
-      target-service:
-        description: "Docker image for target service (optional)"
-        required: false
-        type: string
-        default: ""
 
 jobs:
   playwright-automation:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
-    services:
-      target:
-        image: ${{ inputs.target-service }}
-        ports:
-          - 3000:3000
-        options: --shm-size=512m
-      if: inputs.target-service != ''
 
     steps:
       - name: Checkout add-on repo
