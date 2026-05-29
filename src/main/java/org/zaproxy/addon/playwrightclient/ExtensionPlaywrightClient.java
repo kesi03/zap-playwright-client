@@ -7,8 +7,11 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import org.parosproxy.paros.Constant;
+import org.parosproxy.paros.control.Control;
 import org.parosproxy.paros.extension.ExtensionAdaptor;
 import org.parosproxy.paros.extension.ExtensionHook;
+import org.zaproxy.addon.automation.ExtensionAutomation;
+import org.zaproxy.addon.playwrightclient.automation.PlaywrightJob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +30,16 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
         super.hook(hook);
 
         hook.addApiImplementor(new PlaywrightClientApi(this));
+
+        ExtensionAutomation extAuto =
+                Control.getSingleton()
+                        .getExtensionLoader()
+                        .getExtension(ExtensionAutomation.class);
+        if (extAuto != null) {
+            extAuto.registerAutomationJob(new PlaywrightJob());
+        } else {
+            LOGGER.warn("Automation add-on not available — skipping automation job registration");
+        }
     }
 
     public void runCrawlAndScan(String baseUrl) {

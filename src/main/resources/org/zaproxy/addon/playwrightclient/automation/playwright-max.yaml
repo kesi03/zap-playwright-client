@@ -1,0 +1,5 @@
+  - type: playwright
+    parameters:
+      url: https://example.com
+      maxDepth: 5
+      maxDuration: 10

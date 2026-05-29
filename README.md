@@ -296,6 +296,32 @@ It provides:
 
 ---
 
+# 🤖 **Automation Framework Support**
+
+The PlaywrightClient add-on integrates with the **ZAP Automation Framework**.  
+You can include a `playwright` job in your automation YAML plans:
+
+```yaml
+jobs:
+  - type: playwright
+    parameters:
+      url: https://target.example.com
+      maxDepth: 5
+      maxDuration: 10
+```
+
+The job will:
+
+1. Crawl the target using Playwright (SPA-aware BFS crawler)
+2. Run all 61 OWASP browser-side security tests
+3. Feed findings as ZAP alerts
+4. Discover AJAX API endpoints and navigate to them
+5. Trigger ZAP's active scanner on all discovered URLs (including AJAX endpoints)
+
+**Dependency:** The `automation` add-on (version >= 0.4.0) must be installed in ZAP.
+
+---
+
 # 🛠 **Development Workflow (Taskfile)**
 
 A `Taskfile.yml` is provided for development automation:
