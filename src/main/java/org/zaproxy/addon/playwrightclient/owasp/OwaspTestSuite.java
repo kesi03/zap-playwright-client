@@ -64,6 +64,18 @@ public class OwaspTestSuite {
         all.addAll(Owasp_MissingSRI.test(page));
         all.addAll(Owasp_DocumentDomain.test(page));
 
+        // Batch 6 — newer additions
+        all.addAll(Owasp_AjaxCallDetection.test(page));
+        all.addAll(Owasp_InsecureSVG.test(page));
+        all.addAll(Owasp_ExternalFonts.test(page));
+        all.addAll(Owasp_ImageSecurity.test(page));
+        all.addAll(Owasp_UnsafeHTTPMethods.test(page));
+        all.addAll(Owasp_UnsafeHTTPMethods.test(page));
+        all.addAll(Owasp_FormCSRF.test(page));
+        all.addAll(Owasp_InputSizeLimits.test(page));
+        all.addAll(Owasp_ScriptInjectionForms.test(page));
+        all.addAll(Owasp_NpmPackageDetection.test(page));
+
         return all;
     }
 }

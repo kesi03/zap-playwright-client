@@ -72,9 +72,9 @@ When you run the PlaywrightClient:
 
 1. It launches a real Chromium browser through ZAP's proxy  
 2. Crawls the target application (React, Angular, Vue, SPA, MPA — all supported) using a BFS SPA-aware crawler  
-3. Runs **44 OWASP browser-side tests**  
+3. Runs **61 OWASP browser-side tests**  
 4. Converts findings into ZAP alerts with CWE/WASC mappings and appropriate risk levels  
-5. Triggers ZAP's active scanner on all discovered URLs  
+5. Triggers ZAP's active scanner on all discovered URLs (including AJAX API endpoints intercepted during testing)  
 
 This gives you **full-stack coverage**:
 
@@ -86,7 +86,7 @@ This gives you **full-stack coverage**:
 
 # 🧪 **OWASP Browser-Side Tests Included**
 
-Below is a complete list of all **52** tests the suite performs, grouped by OWASP category.
+Below is a complete list of all **61** tests the suite performs, grouped by OWASP category.
 
 ---
 
@@ -96,6 +96,7 @@ Below is a complete list of all **52** tests the suite performs, grouped by OWAS
 - Weak password reset flow (missing email verification)
 - CSRF — session cookie missing `SameSite` attribute
 - Tabnabbing — `target="_blank"` links missing `rel="noopener noreferrer"`
+- Unsafe HTTP methods (DELETE, PUT, PATCH) detected in requests
 
 ---
 
@@ -110,6 +111,9 @@ Below is a complete list of all **52** tests the suite performs, grouped by OWAS
 - Exposed environment variables (`process.env`)
 - Sensitive data keywords in JavaScript (`apiKey`, `secret`, `token`)
 - Autocomplete enabled on sensitive fields (password, credit card)
+- Canvas `toDataURL()` / `toBlob()` — possible client-side data exfiltration
+- Fonts loaded over unencrypted HTTP
+- Images loaded over HTTP (mixed content via AJAX/DOM)
 
 ---
 
@@ -123,6 +127,9 @@ Below is a complete list of all **52** tests the suite performs, grouped by OWAS
 - Client-side path traversal (`/static/../etc/passwd`)
 - `innerHTML` / `document.write()` usage — possible DOM XSS vector
 - `document.domain` lowered — weakens same-origin policy
+- Form inputs missing pattern validation — potential script injection vector
+- Insecure SVG detection (`<script>` in SVG, event handlers, `<foreignObject>`, external `<use>` references)
+- Image security: event handlers on `<img>` tags (XSS vector)
 
 ---
 
@@ -130,6 +137,12 @@ Below is a complete list of all **52** tests the suite performs, grouped by OWAS
 - Weak password policy (accepting trivial passwords like `123`)
 - Missing validation on sensitive fields
 - SPA route table enumeration (`window.__ROUTES__` leak)
+- Login forms missing anti-CSRF tokens
+- Text inputs/textarea missing maxlength or pattern limits
+- AJAX call interception — discovers API endpoints, detects internal API calls, sensitive data in request bodies, and HTTP-based AJAX
+- Missing `crossorigin` on external fonts — font fingerprinting/tracking risk
+- Tracking pixels / `navigator.sendBeacon()` — possible data exfiltration
+- Inline base64 images — review for sensitive data exposure
 
 ---
 
@@ -156,6 +169,8 @@ Below is a complete list of all **52** tests the suite performs, grouped by OWAS
 - React hydration errors (console monitoring)
 - OAuth misconfiguration (`client_secret` or `clientId` in client-side code)
 - Known JavaScript library detection (jQuery, Angular, Vue, React, Backbone, Underscore, Moment, SocketIO, Bootstrap)
+- Npm-based framework detection (webpack, Next.js, Nuxt, Vue CLI, Sentry, GA, GTM, FB Pixel)
+- Source map exposure detection (`/node_modules/` references in page source)
 
 ---
 
@@ -273,7 +288,7 @@ The PlaywrightClient add-on transforms ZAP into a **full browser-aware security 
 It provides:
 
 - A real browser  
-- A full OWASP test suite (52 tests)  
+- A full OWASP test suite (61 tests)  
 - SPA-aware crawling  
 - Automatic ZAP alert creation with CWE/WASC mappings  
 - Screenshot capture and retrieval  

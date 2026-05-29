@@ -4,6 +4,7 @@ import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.Proxy;
 import org.zaproxy.addon.playwrightclient.owasp.OwaspTestFinding;
 import org.zaproxy.addon.playwrightclient.owasp.OwaspTestSuite;
+import org.zaproxy.addon.playwrightclient.owasp.Owasp_AjaxCallDetection;
 
 import java.util.*;
 import org.slf4j.Logger;
@@ -32,6 +33,8 @@ public class PlaywrightTestRunner {
             Browser browser = pw.chromium().launch(opts);
             BrowserContext context = browser.newContext(new Browser.NewContextOptions().setIgnoreHTTPSErrors(true));
 
+            Owasp_AjaxCallDetection.reset();
+
             for (String url : urls) {
                 try {
                     Page page = context.newPage();
@@ -49,8 +52,24 @@ public class PlaywrightTestRunner {
                 }
             }
 
+            Set<String> ajaxUrls = Owasp_AjaxCallDetection.getDiscoveredAjaxUrls();
+            Set<String> allUrls = new HashSet<>(urls);
+            if (!ajaxUrls.isEmpty()) {
+                LOGGER.info("Discovered {} AJAX URL(s) — adding to scan scope", ajaxUrls.size());
+                for (String ajaxUrl : ajaxUrls) {
+                    allUrls.add(ajaxUrl);
+                    try {
+                        Page p = context.newPage();
+                        p.navigate(ajaxUrl);
+                        p.close();
+                    } catch (Exception e) {
+                        LOGGER.debug("Skipped navigation to AJAX URL (not a page?): {}", ajaxUrl);
+                    }
+                }
+            }
+
             try {
-                zapOrchestrator.scanUrls(urls);
+                zapOrchestrator.scanUrls(allUrls);
             } catch (Exception ignored) {}
 
             browser.close();
