@@ -23,8 +23,8 @@ async function step(label: string, fn: () => void) {
 function buildAddon() {
   const isWin = process.platform === "win32";
   const gradleCmd = join(ROOT, isWin ? "gradlew.bat" : "gradlew");
-  const result = spawnSync(gradleCmd, ["build"], { stdio: "inherit", cwd: ROOT, shell: isWin });
-  if (result.status !== 0) throw new Error(`gradlew build failed with exit code ${result.status}`);
+  const result = spawnSync(gradleCmd, ["clean", "build"], { stdio: "inherit", cwd: ROOT, shell: isWin });
+  if (result.status !== 0) throw new Error(`gradlew clean build failed with exit code ${result.status}`);
 }
 
 function offlinePack() {

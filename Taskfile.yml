@@ -23,9 +23,9 @@ tasks:
     cmds:
       - |
         {{if eq OS "windows"}}
-        "{{joinPath .ROOT "gradlew.bat"}}" build
+        "{{joinPath .ROOT "gradlew.bat"}}" clean build
         {{else}}
-        "{{joinPath .ROOT "gradlew"}}" build
+        "{{joinPath .ROOT "gradlew"}}" clean build
         {{end}}
 
 
