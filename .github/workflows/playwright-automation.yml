@@ -85,14 +85,6 @@ jobs:
         shell: bash
         run: pnpm exec playwright install chromium --with-deps
 
-      - name: Patch TOML for ZGC compat
-        shell: bash
-        run: |
-          TOML=$(find zap-install -name default.toml | head -1)
-          if grep -q "UseZGC" "$TOML" 2>/dev/null && ! grep -q "UnlockExperimentalVMOptions" "$TOML" 2>/dev/null; then
-            sed -i '/-XX:+UseZGC/i\  "-XX:+UnlockExperimentalVMOptions",' "$TOML"
-          fi
-
       - name: Create ZAP automation plan
         shell: bash
         run: |
@@ -130,12 +122,9 @@ jobs:
       - name: Start daemon and run automation plan
         shell: bash
         run: |
-          TOML=$(find zap-install -name default.toml | head -1)
           pnpm exec zapr daemon autorun \
             --plan playwright-plan.yaml \
-            --toml "$TOML" \
-            --dir zap-install \
-            --workspace zap-install/workspace
+            --workspace "$(pwd)/zap-install/workspace"
 
       - name: Display results
         if: always()
