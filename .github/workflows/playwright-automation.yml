@@ -136,9 +136,11 @@ jobs:
                 maxDepth: 5
                 maxDuration: 10
                 driverDir: "{{DRIVER_DIR}}"
+                scriptsDir: "{{SCRIPTS_DIR}}"
           EOF
           sed -i "s|{{TARGET_URL}}|${{ inputs.target-url }}|g" playwright-plan.yaml
           sed -i "s|{{DRIVER_DIR}}|$(pwd)/playwright-java-driver/driver/linux|g" playwright-plan.yaml
+          sed -i "s|{{SCRIPTS_DIR}}|$(pwd)/user-scripts|g" playwright-plan.yaml
           echo "Generated automation plan:"
           cat playwright-plan.yaml
 

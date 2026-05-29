@@ -52,6 +52,12 @@ public class PlaywrightJob extends AutomationJob {
             System.setProperty("playwright.cli.dir", driverDir);
         }
 
+        String scriptsDir = parameters.getScriptsDir();
+        if (scriptsDir != null && !scriptsDir.isEmpty()) {
+            scriptsDir = env.replaceVars(scriptsDir);
+            progress.info("Playwright: user scripts directory: " + scriptsDir);
+        }
+
         ExtensionPlaywrightClient ext =
                 Control.getSingleton()
                         .getExtensionLoader()
@@ -64,7 +70,7 @@ public class PlaywrightJob extends AutomationJob {
 
         progress.info("Playwright: starting crawl and scan for " + url);
         try {
-            ext.runCrawlAndScan(url);
+            ext.runCrawlAndScan(url, scriptsDir);
             progress.info("Playwright: crawl and scan complete for " + url);
         } catch (Exception e) {
             LOGGER.error("Playwright job failed: {}", e.getMessage(), e);
@@ -128,6 +134,7 @@ public class PlaywrightJob extends AutomationJob {
         private int maxDepth = 5;
         private int maxDuration = 10;
         private String driverDir;
+        private String scriptsDir;
 
         public String getUrl() {
             return url;
@@ -159,6 +166,14 @@ public class PlaywrightJob extends AutomationJob {
 
         public void setDriverDir(String driverDir) {
             this.driverDir = driverDir;
+        }
+
+        public String getScriptsDir() {
+            return scriptsDir;
+        }
+
+        public void setScriptsDir(String scriptsDir) {
+            this.scriptsDir = scriptsDir;
         }
     }
 }

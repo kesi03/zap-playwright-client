@@ -17,11 +17,16 @@ public class PlaywrightTestRunner {
     private final String zapProxy;
     private final PlaywrightAlertService alertService;
     private final ZapScanOrchestrator zapOrchestrator;
+    private String scriptsDir;
 
     public PlaywrightTestRunner(String zapProxy) {
         this.zapProxy = zapProxy;
         this.alertService = new PlaywrightAlertService();
         this.zapOrchestrator = new ZapScanOrchestrator();
+    }
+
+    public void setScriptsDir(String scriptsDir) {
+        this.scriptsDir = scriptsDir;
     }
 
     public void runTests(Set<String> urls, String baseUrl) {
@@ -65,6 +70,19 @@ public class PlaywrightTestRunner {
                     } catch (Exception e) {
                         LOGGER.debug("Skipped navigation to AJAX URL (not a page?): {}", ajaxUrl);
                     }
+                }
+            }
+
+            if (scriptsDir != null && !scriptsDir.isEmpty()) {
+                try {
+                    UserScriptRunner scriptRunner = new UserScriptRunner(baseUrl, zapProxy);
+                    List<OwaspTestFinding> scriptFindings = scriptRunner.runScripts(scriptsDir);
+                    for (OwaspTestFinding f : scriptFindings) {
+                        alertService.createAlert(f);
+                    }
+                    LOGGER.info("User scripts produced {} finding(s)", scriptFindings.size());
+                } catch (Exception e) {
+                    LOGGER.error("User script runner failed: {}", e.getMessage(), e);
                 }
             }
 

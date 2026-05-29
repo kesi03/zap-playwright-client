@@ -55,12 +55,19 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
     }
 
     public void runCrawlAndScan(String baseUrl) {
+        runCrawlAndScan(baseUrl, null);
+    }
+
+    public void runCrawlAndScan(String baseUrl, String scriptsDir) {
         ensureDriverDir();
         String zapProxy = getZapProxy();
         PlaywrightCrawler crawler = new PlaywrightCrawler(baseUrl, zapProxy);
         var urls = crawler.crawl();
 
         PlaywrightTestRunner runner = new PlaywrightTestRunner(zapProxy);
+        if (scriptsDir != null && !scriptsDir.isEmpty()) {
+            runner.setScriptsDir(scriptsDir);
+        }
         runner.runTests(urls, baseUrl);
     }
 
