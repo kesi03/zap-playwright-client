@@ -85,6 +85,25 @@ jobs:
         shell: bash
         run: pnpm exec playwright install chromium --with-deps
 
+      - name: Pre-extract Playwright Java driver
+        shell: bash
+        run: |
+          # Playwright Java's DriverJar uses getResource("/driver/linux/node") to
+          # find the driver binary, but ZAP's add-on classloader doesn't expose
+          # resources nested inside .zap bundles. Pre-extract the full driver/linux/
+          # directory tree and set PLAYWRIGHT_NODE_PATH to bypass classpath lookup.
+          mkdir -p playwright-java-driver
+          python -c "
+import zipfile, sys
+z = zipfile.ZipFile(sys.argv[1], 'r')
+for f in z.namelist():
+    if f.startswith('driver/linux/'):
+        z.extract(f, sys.argv[2])
+z.close()
+" "${{ env.ADDON_PATH }}" playwright-java-driver
+          chmod +x playwright-java-driver/driver/linux/node
+          echo "PLAYWRIGHT_NODE_PATH=$(pwd)/playwright-java-driver/driver/linux/node" >> $GITHUB_ENV
+
       - name: Create ZAP automation plan
         shell: bash
         run: |
