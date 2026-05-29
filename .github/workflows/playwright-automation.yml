@@ -83,14 +83,7 @@ jobs:
 
       - name: Install Playwright browsers
         shell: bash
-        run: |
-          PLAYWRIGHT_JAR=$(find ~/.gradle/caches -name 'playwright-*.jar' 2>/dev/null | head -1)
-          if [ -n "$PLAYWRIGHT_JAR" ]; then
-            java -cp "$PLAYWRIGHT_JAR" com.microsoft.playwright.CLI install chromium
-          else
-            echo "Playwright JAR not found in Gradle cache, trying via classpath..."
-            java -cp "$(./gradlew -q dependencies --configuration runtimeClasspath 2>/dev/null | grep -oP '\S*playwright-\d[\d.]*\.jar' | head -1)" com.microsoft.playwright.CLI install chromium 2>/dev/null || true
-          fi
+        run: pnpm exec playwright install chromium --with-deps
 
       - name: Patch TOML for ZGC compat
         shell: bash
