@@ -91,7 +91,9 @@ jobs:
           # Playwright Java's DriverJar uses getResource("/driver/linux/node") to
           # find the driver binary, but ZAP's add-on classloader doesn't expose
           # resources nested inside .zap bundles. Pre-extract the full driver/linux/
-          # directory tree and set PLAYWRIGHT_NODE_PATH to bypass classpath lookup.
+          # directory tree and pass the path via the automation plan's driverDir
+          # parameter, which sets the playwright.cli.dir system property to create
+          # a PreinstalledDriver instead, bypassing the classpath lookup entirely.
           mkdir -p playwright-java-driver
           python -c "
           import zipfile, sys
@@ -102,7 +104,7 @@ jobs:
           z.close()
           " "${{ env.ADDON_PATH }}" playwright-java-driver
           chmod +x playwright-java-driver/driver/linux/node
-          echo "PLAYWRIGHT_NODE_PATH=$(pwd)/playwright-java-driver/driver/linux/node" >> $GITHUB_ENV
+          echo "PLAYWRIGHT_NODEJS_PATH=$(pwd)/playwright-java-driver/driver/linux/node" >> $GITHUB_ENV
 
       - name: Create ZAP automation plan
         shell: bash
@@ -133,8 +135,10 @@ jobs:
                 url: "{{TARGET_URL}}"
                 maxDepth: 5
                 maxDuration: 10
+                driverDir: "{{DRIVER_DIR}}"
           EOF
           sed -i "s|{{TARGET_URL}}|${{ inputs.target-url }}|g" playwright-plan.yaml
+          sed -i "s|{{DRIVER_DIR}}|$(pwd)/playwright-java-driver/driver/linux|g" playwright-plan.yaml
           echo "Generated automation plan:"
           cat playwright-plan.yaml
 

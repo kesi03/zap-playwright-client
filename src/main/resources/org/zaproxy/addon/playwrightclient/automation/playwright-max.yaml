@@ -3,3 +3,4 @@
       url: https://example.com
       maxDepth: 5
       maxDuration: 10
+      driverDir:

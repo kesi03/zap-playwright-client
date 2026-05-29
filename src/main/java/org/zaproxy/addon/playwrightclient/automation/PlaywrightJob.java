@@ -45,6 +45,13 @@ public class PlaywrightJob extends AutomationJob {
         }
         url = env.replaceVars(url);
 
+        String driverDir = parameters.getDriverDir();
+        if (driverDir != null && !driverDir.isEmpty()) {
+            driverDir = env.replaceVars(driverDir);
+            progress.info("Playwright: setting driver directory to " + driverDir);
+            System.setProperty("playwright.cli.dir", driverDir);
+        }
+
         ExtensionPlaywrightClient ext =
                 Control.getSingleton()
                         .getExtensionLoader()
@@ -120,6 +127,7 @@ public class PlaywrightJob extends AutomationJob {
         private String url;
         private int maxDepth = 5;
         private int maxDuration = 10;
+        private String driverDir;
 
         public String getUrl() {
             return url;
@@ -143,6 +151,14 @@ public class PlaywrightJob extends AutomationJob {
 
         public void setMaxDuration(int maxDuration) {
             this.maxDuration = maxDuration;
+        }
+
+        public String getDriverDir() {
+            return driverDir;
+        }
+
+        public void setDriverDir(String driverDir) {
+            this.driverDir = driverDir;
         }
     }
 }

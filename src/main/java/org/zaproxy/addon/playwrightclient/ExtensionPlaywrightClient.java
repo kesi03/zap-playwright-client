@@ -2,6 +2,7 @@ package org.zaproxy.addon.playwrightclient;
 
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.Proxy;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
@@ -42,7 +43,19 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
         }
     }
 
+    private static void ensureDriverDir() {
+        if (System.getProperty("playwright.cli.dir") != null) return;
+        String nodePath = System.getenv("PLAYWRIGHT_NODEJS_PATH");
+        if (nodePath != null && !nodePath.isEmpty()) {
+            Path dir = Paths.get(nodePath).getParent();
+            if (dir != null && Files.exists(dir)) {
+                System.setProperty("playwright.cli.dir", dir.toString());
+            }
+        }
+    }
+
     public void runCrawlAndScan(String baseUrl) {
+        ensureDriverDir();
         String zapProxy = getZapProxy();
         PlaywrightCrawler crawler = new PlaywrightCrawler(baseUrl, zapProxy);
         var urls = crawler.crawl();
@@ -52,6 +65,7 @@ public class ExtensionPlaywrightClient extends ExtensionAdaptor {
     }
 
     public Path takeScreenshot(String url) {
+        ensureDriverDir();
         String zapProxy = getZapProxy();
         Path dir = getScreenshotDir();
         dir.toFile().mkdirs();
