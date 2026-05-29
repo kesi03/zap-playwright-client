@@ -1,4 +1,6 @@
-///usr/bin/env java --source 21
+///usr/bin/env jbang
+//DEPS com.microsoft.playwright:playwright:1.59.0
+
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.Proxy;
 import java.nio.file.Files;
@@ -44,15 +46,10 @@ public class CheckBrowserSecurity {
                     .setUserAgent("Mozilla/5.0 (compatible; ZAP-Playwright-UserScript/1.0)"));
                 Page page = context.newPage();
 
-                page.onConsoleMessage(msg -> {
-                    // collected inline
-                });
-
                 try {
                     page.navigate(targetUrl, new Page.NavigateOptions()
                         .setWaitUntil(Page.WaitUntilState.NETWORKIDLE));
 
-                    // Password field autocomplete check
                     List<ElementHandle> passwordInputs = page.querySelectorAll("input[type='password']");
                     for (ElementHandle inp : passwordInputs) {
                         String autocomplete = inp.getAttribute("autocomplete");
@@ -61,12 +58,11 @@ public class CheckBrowserSecurity {
                                 "el -> (el.closest('form') || {}).id || el.name || 'unnamed'");
                             findings.add(new Finding(targetUrl, "Autocomplete Sensitive",
                                 "Password field '" + formId + "' has autocomplete=" + autocomplete
-                                    + " — credentials may be cached",
+                                    + " \u2014 credentials may be cached",
                                 "<input type=password name=" + formId + " autocomplete=" + autocomplete + ">"));
                         }
                     }
 
-                    // GET method forms with password fields
                     List<ElementHandle> forms = page.querySelectorAll("form");
                     for (ElementHandle form : forms) {
                         String methodAttr = form.getAttribute("method");
@@ -75,12 +71,11 @@ public class CheckBrowserSecurity {
                             String action = form.getAttribute("action");
                             if (action == null) action = "(self)";
                             findings.add(new Finding(targetUrl, "Insecure Design",
-                                "Form with password field uses GET method — credentials exposed in URL",
+                                "Form with password field uses GET method \u2014 credentials exposed in URL",
                                 "<form method=GET action=" + action + "> with password field"));
                         }
                     }
 
-                    // Insecure form action URLs
                     for (ElementHandle form : forms) {
                         String action = form.getAttribute("action");
                         if (action != null && action.startsWith("http://")) {

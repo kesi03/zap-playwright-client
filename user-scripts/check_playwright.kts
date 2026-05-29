@@ -1,5 +1,5 @@
-#!/usr/bin/env kotlinc -script
-@file:DependsOn("com.microsoft.playwright:playwright:1.59.0")
+///usr/bin/env jbang
+//DEPS com.microsoft.playwright:playwright:1.59.0
 
 import com.microsoft.playwright.*
 import com.microsoft.playwright.options.Proxy
@@ -64,7 +64,7 @@ fun main() {
                 val method = (form.getAttribute("method") ?: "get").uppercase()
                 if (method == "GET" && form.querySelectorAll("input[type='password']").isNotEmpty()) {
                     findings.add(Finding(targetUrl, "Insecure Design",
-                        "Form with password field uses GET method — credentials exposed in URL",
+                        "Form with password field uses GET method \u2014 credentials exposed in URL",
                         "<form method=GET action=$action> with password field"))
                 }
             }

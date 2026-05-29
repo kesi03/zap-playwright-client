@@ -5,6 +5,7 @@ plugins {
     kotlin("jvm") version "1.9.23" apply false
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("org.zaproxy.add-on") version "0.13.1"
+    id("dev.jbang") version "0.2.0"
 }
 
 group = "org.zaproxy.addon"

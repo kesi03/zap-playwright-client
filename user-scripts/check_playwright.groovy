@@ -1,5 +1,5 @@
-#!/usr/bin/env groovy
-@Grab('com.microsoft.playwright:playwright:1.59.0')
+///usr/bin/env jbang
+//DEPS com.microsoft.playwright:playwright:1.59.0
 
 import com.microsoft.playwright.*
 import com.microsoft.playwright.options.Proxy

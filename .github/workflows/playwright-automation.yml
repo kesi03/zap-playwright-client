@@ -40,6 +40,9 @@ jobs:
           corepack enable
           corepack prepare pnpm@9.0.0 --activate
 
+      - name: Setup JBang
+        uses: jbangdev/setup-jbang@main
+
       - name: Build add-on
         shell: bash
         run: |

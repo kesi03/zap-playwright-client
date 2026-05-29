@@ -16,6 +16,7 @@
     "test:photo": "node --import tsx scripts/photo.ts"
   },
   "devDependencies": {
+    "@jbangdev/jbang": "^0.7.1",
     "@mockholm/zap-downloader": "^1.0.11",
     "@mockholm/zapr": "^1.0.5",
     "@types/node": "^25.9.0",
