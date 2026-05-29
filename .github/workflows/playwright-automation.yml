@@ -94,13 +94,13 @@ jobs:
           # directory tree and set PLAYWRIGHT_NODE_PATH to bypass classpath lookup.
           mkdir -p playwright-java-driver
           python -c "
-import zipfile, sys
-z = zipfile.ZipFile(sys.argv[1], 'r')
-for f in z.namelist():
-    if f.startswith('driver/linux/'):
-        z.extract(f, sys.argv[2])
-z.close()
-" "${{ env.ADDON_PATH }}" playwright-java-driver
+          import zipfile, sys
+          z = zipfile.ZipFile(sys.argv[1], 'r')
+          for f in z.namelist():
+              if f.startswith('driver/linux/'):
+                  z.extract(f, sys.argv[2])
+          z.close()
+          " "${{ env.ADDON_PATH }}" playwright-java-driver
           chmod +x playwright-java-driver/driver/linux/node
           echo "PLAYWRIGHT_NODE_PATH=$(pwd)/playwright-java-driver/driver/linux/node" >> $GITHUB_ENV
 
