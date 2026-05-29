@@ -1,9 +1,68 @@
-# 🛡️ **PlaywrightClient Add-on — OWASP Browser‑Side Security Test Suite**
+# 🛡️ **PlaywrightClient Add-on — OWASP Browser-Side Security Test Suite**
 
-The **PlaywrightClient** add-on extends OWASP ZAP with a modern, browser‑powered security testing engine.  
-It uses **Playwright** to execute your application in a real browser, detect client‑side vulnerabilities, and feed findings directly into ZAP as alerts.
+The **PlaywrightClient** add-on extends OWASP ZAP with a modern, browser-powered security testing engine.  
+It uses **Playwright** to execute your application in a real browser, detect client-side vulnerabilities, and feed findings directly into ZAP as alerts.
 
-This complements ZAP’s traditional passive and active scanning by adding **SPA‑aware, DOM‑aware, JavaScript‑aware** security checks that ZAP alone cannot perform.
+This complements ZAP's traditional passive and active scanning by adding **SPA-aware, DOM-aware, JavaScript-aware** security checks that ZAP alone cannot perform.
+
+---
+
+# 🚀 **Quick Start**
+
+## Prerequisites
+
+- Node.js 18+
+- Java JDK 21
+
+## Install Dependencies
+
+```bash
+npm install
+```
+
+## Build and Run (Full Workflow)
+
+The following command builds the add-on, downloads/packs ZAP, installs the add-on, and starts the ZAP daemon:
+
+```bash
+npm run dev
+```
+
+This executes `scripts/dev.ts` which:
+1. Builds the Gradle add-on (`gradlew build`)
+2. Creates an offline ZAP package (if not already unpacked)
+3. Unpacks ZAP into `zap-dev-install/`
+4. Installs the built `.zap` file into ZAP's plugin directory
+5. Patches ZAP's TOML config for ZGC compatibility
+6. Starts the ZAP daemon on `http://127.0.0.1:8080`
+
+## Running Integration Tests
+
+After the daemon is running, execute the full integration test suite:
+
+```bash
+npm run test:integration
+```
+
+This runs `scripts/integration.ts` which:
+1. Connects to the ZAP daemon (starts it via `npm run dev` if not running)
+2. Calls the `playwrightclient/runCrawlAndScan` API against a target URL
+3. Monitors ZAP logs for Playwright-generated alerts
+4. Cross-checks alerts via the ZAP API
+5. Exits with code 0 on success, 1 on failure
+
+## Running the Screenshot Test
+
+```bash
+npm run test:photo
+```
+
+This runs `scripts/photo.ts` which:
+1. Connects to ZAP (starts via `npm run dev` if needed)
+2. Takes a screenshot of a target URL via `playwrightclient/screenshotPage`
+3. Downloads the PNG via `playwrightclient/other/screenshot`
+4. Validates the PNG file integrity
+5. Exits with code 0 on success, 1 on failure
 
 ---
 
@@ -11,23 +70,23 @@ This complements ZAP’s traditional passive and active scanning by adding **SPA
 
 When you run the PlaywrightClient:
 
-1. It launches a real Chromium browser through ZAP’s proxy  
-2. Crawls the target application (React, Angular, Vue, SPA, MPA — all supported)  
-3. Runs **40+ OWASP browser‑side tests**  
-4. Converts findings into ZAP alerts  
-5. Triggers ZAP’s active scanner on all discovered URLs  
+1. It launches a real Chromium browser through ZAP's proxy  
+2. Crawls the target application (React, Angular, Vue, SPA, MPA — all supported) using a BFS SPA-aware crawler  
+3. Runs **44 OWASP browser-side tests**  
+4. Converts findings into ZAP alerts with CWE/WASC mappings and appropriate risk levels  
+5. Triggers ZAP's active scanner on all discovered URLs  
 
 This gives you **full-stack coverage**:
 
 - ZAP passive scan  
 - ZAP active scan  
-- Playwright browser‑side OWASP tests  
+- Playwright browser-side OWASP tests  
 
 ---
 
-# 🧪 **OWASP Browser‑Side Tests Included**
+# 🧪 **OWASP Browser-Side Tests Included**
 
-Below is a complete list of all tests the suite performs, grouped by OWASP category.
+Below is a complete list of all **44** tests the suite performs, grouped by OWASP category.
 
 ---
 
@@ -35,6 +94,7 @@ Below is a complete list of all tests the suite performs, grouped by OWASP categ
 - Accessing sensitive routes without authentication (`/admin`, `/settings`, `/internal`)
 - Open redirect detection (`redirect=`, `next=`, `returnUrl=`)
 - Weak password reset flow (missing email verification)
+- CSRF — session cookie missing `SameSite` attribute
 
 ---
 
@@ -43,43 +103,54 @@ Below is a complete list of all tests the suite performs, grouped by OWASP categ
 - Mixed content (HTTP resources on HTTPS pages)
 - Missing HSTS header
 - Sensitive data stored in `localStorage` or `sessionStorage`
-- Hardcoded secrets in JavaScript
-- JWT decoding performed client‑side
+- Hardcoded credentials in page content (`password`, `secret`, `apikey`, `token`)
+- JWT decoding performed client-side (`jwt.decode`, `atob`)
 - Insecure WebSocket usage (`ws://` instead of `wss://`)
+- Exposed environment variables (`process.env`)
+- Sensitive data keywords in JavaScript (`apiKey`, `secret`, `token`)
+- Autocomplete enabled on sensitive fields (password, credit card)
 
 ---
 
 ## 🧨 **A03 — Injection**
-- DOM‑based XSS detection (script injection, event handlers)
+- DOM-based XSS detection (script injection, event handlers)
+- Advanced DOM XSS (inline `onerror`, `onload` handlers)
 - Reflected parameter injection (`?q=payload`)
 - Dangerous JS functions (`eval`, `new Function`)
-- Prototype pollution indicators
-- DOM clobbering (`window.id` overwritten)
+- Prototype pollution indicators (`__proto__`)
+- DOM clobbering (`window["constructor"]`, `document["__proto__"]`)
+- Client-side path traversal (`/static/../etc/passwd`)
 
 ---
 
 ## 🏗️ **A04 — Insecure Design**
-- Weak password policy (accepting trivial passwords)
+- Weak password policy (accepting trivial passwords like `123`)
 - Missing validation on sensitive fields
+- SPA route table enumeration (`window.__ROUTES__` leak)
 
 ---
 
 ## 📦 **A05 — Security Misconfiguration**
 - Missing or weak CSP (`unsafe-inline`, `unsafe-eval`)
 - CSP nonce reuse
-- Missing X‑Frame‑Options / frame‑ancestors (clickjacking)
-- Missing Permissions‑Policy header
-- Missing Cache‑Control header
+- Missing X-Frame-Options / frame-ancestors (clickjacking)
+- Missing Permissions-Policy header
+- Missing Cache-Control header
 - Weak iframe sandboxing
 - CORS misconfiguration (`Access-Control-Allow-Origin: *`)
+- Weak CORS preflight (permissive methods with wildcard origin)
 - Exposed environment variables (`process.env`)
-- Insecure third‑party widget loading
+- Insecure third-party widget loading
+- Insecure file upload (`accept="*"`)
+- GraphQL introspection query probing (`/graphql`)
 
 ---
 
 ## 🧬 **A06 — Vulnerable & Outdated Components**
 - React DevTools hook present in production
 - React version leaked to the client
+- React hydration errors (console monitoring)
+- OAuth misconfiguration (`client_secret` or `clientId` in client-side code)
 
 ---
 
@@ -90,7 +161,7 @@ Below is a complete list of all tests the suite performs, grouped by OWASP categ
 ---
 
 ## 🧱 **A08 — Software & Data Integrity Failures**
-- Insecure script loading (`http://cdn…`)
+- Insecure script loading (`http://cdn...`)
 - Service Worker active (potential caching of sensitive data)
 
 ---
@@ -106,10 +177,25 @@ Below is a complete list of all tests the suite performs, grouped by OWASP categ
 
 ---
 
+# 📸 **Screenshot Functionality**
+
+The add-on provides a full screenshot capability for visual inspection of target pages:
+
+## API Endpoints
+
+| Endpoint | Type | Parameters | Description |
+|---|---|---|---|
+| `playwrightclient/action/screenshotPage` | action | `url` | Takes a PNG screenshot of the given URL, returns the file path |
+| `playwrightclient/other/screenshot` | other | `file` (optional) | Serves a screenshot PNG. If `file` is given, serves that specific file; otherwise serves the most recent PNG |
+
+Screenshots are saved to `$ZAP_HOME/screenshots/` with filenames like `{sanitizedUrl}_{yyyyMMdd_HHmmss}.png`.
+
+---
+
 # 🧭 **SPA / React / Modern Frontend Tests**
 These tests are specifically designed for modern JavaScript applications:
 
-- SPA route enumeration (React Router route leaks)
+- SPA route enumeration (React Router route leaks via `window.__ROUTES__`)
 - Detection of client-side routing tables
 - React hydration / devtools exposure
 - Dynamic DOM scanning after navigation
@@ -123,6 +209,7 @@ These tests are specifically designed for modern JavaScript applications:
 - Inline script detection
 - Suspicious inline event handlers (`onerror`, `onload`)
 - Exposed API keys in JS bundles
+- GraphQL introspection probing
 
 ---
 
@@ -134,7 +221,9 @@ Each finding is converted into a ZAP alert with:
 - **Description**  
 - **Evidence**  
 - **OWASP category**  
-- **Medium risk / High confidence** (default)
+- **Risk level** (mapped by category — HIGH for XSS/injection/broken access, MEDIUM for crypto/misconfig)  
+- **CWE and WASC IDs**  
+- **Plugin ID 60101**
 
 Alerts appear in:
 
@@ -154,7 +243,7 @@ The PlaywrightClient add-on works alongside:
 - ZAP Passive Scanner  
 - ZAP Active Scanner  
 
-It adds **browser‑side intelligence** that ZAP’s core engine cannot provide.
+It adds **browser-side intelligence** that ZAP's core engine cannot provide.
 
 ---
 
@@ -162,8 +251,8 @@ It adds **browser‑side intelligence** that ZAP’s core engine cannot provide.
 
 - Testing **React / Angular / Vue** apps  
 - Testing **SPAs** with dynamic routing  
-- Detecting **DOM‑based vulnerabilities**  
-- Detecting **client‑side misconfigurations**  
+- Detecting **DOM-based vulnerabilities**  
+- Detecting **client-side misconfigurations**  
 - Strengthening **CI/CD pipelines**  
 - Enhancing **ZAP Automation Framework** scans  
 
@@ -171,14 +260,41 @@ It adds **browser‑side intelligence** that ZAP’s core engine cannot provide.
 
 # 🏁 **Summary**
 
-The PlaywrightClient add-on transforms ZAP into a **full browser‑aware security scanner**, capable of detecting modern client‑side vulnerabilities that traditional scanners miss.
+The PlaywrightClient add-on transforms ZAP into a **full browser-aware security scanner**, capable of detecting modern client-side vulnerabilities that traditional scanners miss.
 
 It provides:
 
 - A real browser  
-- A full OWASP test suite  
-- SPA‑aware crawling  
-- Automatic ZAP alert creation  
-- Seamless integration with ZAP’s scanning engine  
+- A full OWASP test suite (44 tests)  
+- SPA-aware crawling  
+- Automatic ZAP alert creation with CWE/WASC mappings  
+- Screenshot capture and retrieval  
+- Seamless integration with ZAP's scanning engine  
 
 ---
+
+# 🛠 **Development Workflow (Taskfile)**
+
+A `Taskfile.yml` is provided for development automation:
+
+| Task | Description |
+|---|---|
+| `default` | Full workflow: build, offline-pack, offline-unpack, install-addon, patch-toml, start-daemon |
+| `build-addon` | Run `gradlew build` |
+| `offline-pack` | Create offline ZAP tar |
+| `offline-unpack` | Unpack ZAP to `zap-dev-install/` |
+| `install-addon` | Copy built `.zap` into ZAP's plugin directory |
+| `patch-toml` | Patch `default.toml` for ZGC compatibility |
+| `start-daemon` | Start ZAP daemon |
+
+---
+
+# 📦 **Available npm Scripts**
+
+| Script | Command | Description |
+|---|---|---|
+| `npm run dev` | `scripts/dev.ts` | Build add-on, unpack ZAP, install plugin, start daemon |
+| `npm run test:integration` | `scripts/integration.ts` | Run full crawl + scan integration test |
+| `npm run test:photo` | `scripts/photo.ts` | Run screenshot capture and validation test |
+| `npm run install:chrome` | Playwright CLI | Install Chromium browser for Playwright |
+| `npm run doctor` | Playwright CLI | Check Playwright browser installation |
