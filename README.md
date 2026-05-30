@@ -342,6 +342,110 @@ pnpm zapr zap automate daemon --file examples/playwright-automation.yaml
 
 ---
 
+# 📜 **User Scripts**
+
+The add-on can run **external user scripts** after the OWASP test suite completes. Scripts are executed as subprocesses and their findings are imported as ZAP alerts — letting you extend the browser-side testing with custom security checks written in any language.
+
+## How It Works
+
+1. Set the `scriptsDir` parameter in the automation plan (or pass it via the API)
+2. The add-on discovers all supported scripts in that directory
+3. Each script is launched with standard CLI arguments:
+   - `--target-url <url>` — the URL being tested
+   - `--proxy <host:port>` — the ZAP proxy address (e.g. `localhost:8080`)
+   - `--output-json <path>` — write findings to this file path
+4. The script writes a JSON array of findings to the output file
+5. The add-on parses the output and creates ZAP alerts
+
+## Supported Languages
+
+| Extension | Runtime | Dependency Management |
+|-----------|---------|-----------------------|
+| `.py` | `python3` | Standard Python packages |
+| `.ts` / `.js` | `npx tsx` / `jbang` | npm packages / `//DEPS` annotations |
+| `.java` | `jbang` | `//DEPS` annotations |
+| `.kt` | `jbang` | `//DEPS` annotations |
+| `.kts` | `jbang` | `//DEPS` annotations |
+| `.groovy` | `jbang` | `//DEPS` annotations |
+
+> **Prerequisites:** Python scripts need `python3` on PATH. TypeScript scripts need `tsx` (available via `npx` from the project's npm dependencies). Java, Kotlin, Groovy, and JavaScript scripts need [JBang](https://www.jbang.dev) installed and available on PATH. JavaScript scripts run via JBang/GraalVM and can use Java interop for HTTP and I/O.
+
+## Output Format
+
+Each script must write a JSON array of finding objects to the file specified by `--output-json`:
+
+```json
+[
+  {
+    "url": "https://target.example.com/page",
+    "category": "Security Misconfiguration",
+    "description": "Description of the finding",
+    "evidence": "Supporting evidence string"
+  }
+]
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `url` | Yes | The URL where the finding was observed |
+| `category` | Yes | OWASP-style category label |
+| `description` | Yes | Human-readable description (shown in the ZAP alert) |
+| `evidence` | No | Technical evidence string (shown in the ZAP alert detail) |
+
+## Automation Plan Configuration
+
+Add `scriptsDir` to the `playwright` job parameters:
+
+```yaml
+jobs:
+  - type: playwright
+    parameters:
+      url: https://target.example.com
+      maxDepth: 5
+      maxDuration: 10
+      scriptsDir: ./user-scripts
+```
+
+Scripts are sorted alphabetically and run in order after the OWASP test suite completes.
+
+## Example Scripts
+
+The repository includes ready-to-use examples in `user-scripts/`:
+
+### Without Playwright (lighter, no browser)
+
+| Script | Language | What it checks |
+|--------|----------|----------------|
+| `check_security_headers.py` | Python | Missing security headers (HSTS, CSP, XFO, etc.) |
+| `check_api_security.py` | Python | Common API endpoint probing, verbose errors |
+| `check_status_code.ts` | TypeScript | HTTP status codes, server header disclosure |
+| `check_headers.js` | JavaScript | HSTS, CSP, X-Content-Type-Options, Server header, redirects |
+| `check_cookies.groovy` | Groovy | Cookie security flags, email disclosure in content |
+| `CheckRedirects.java` | Java | Open redirect detection, Server header leak |
+| `check_cors.kts` | Kotlin | CORS misconfiguration testing |
+
+### With Playwright (full browser automation)
+
+| Script | Language | What it checks |
+|--------|----------|----------------|
+| `playwright_forms.py` | Python | Autocomplete on password fields, GET-form credentials, localStorage secrets |
+| `playwright_console_errors.ts` | TypeScript | Console errors, JS exceptions, mixed content, missing SRI |
+| `CheckBrowserSecurity.java` | Java | Autocomplete on passwords, GET+password forms, HTTP form actions |
+| `check_playwright.kts` | Kotlin | Console errors, GET forms with password fields |
+| `check_playwright.groovy` | Groovy | Console errors, JS exceptions, missing SRI |
+
+Playwright-based scripts use a real browser instance launched through ZAP's proxy, letting you detect issues that only appear in a live browser context.
+
+## API Usage
+
+User scripts can also be triggered via the ZAP API:
+
+```
+http://zap:8080/JSON/playwrightclient/action/runCrawlAndScan?url=https://target.example.com&scriptsDir=/path/to/scripts
+```
+
+---
+
 # 🤖 **CI/CD — GitHub Actions**
 
 Two GitHub Actions components are provided for CI/CD integration:

@@ -15,4 +15,4 @@ zap-dev-install
 .classpath
 .project
 zap-offline.tar
-libs/
+.settings/

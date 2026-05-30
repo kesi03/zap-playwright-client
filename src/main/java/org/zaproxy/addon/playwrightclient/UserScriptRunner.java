@@ -65,7 +65,7 @@ public class UserScriptRunner {
 
     private boolean isSupported(Path file) {
         String name = file.getFileName().toString().toLowerCase();
-        return name.endsWith(".py") || name.endsWith(".ts")
+        return name.endsWith(".py") || name.endsWith(".ts") || name.endsWith(".js")
             || name.endsWith(".java") || name.endsWith(".kt")
             || name.endsWith(".kts") || name.endsWith(".groovy");
     }
