@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-patchedDependencies:
-  '@mockholm/zap-downloader':
-    hash: mwocbxygfqtz5y4txlzdx5x5q4
-    path: patches/@mockholm__zap-downloader.patch
-
 importers:
 
   .:
@@ -17,8 +12,8 @@ importers:
         specifier: ^0.7.1
         version: 0.7.1
       '@mockholm/zap-downloader':
-        specifier: ^1.0.11
-        version: 1.0.11(patch_hash=mwocbxygfqtz5y4txlzdx5x5q4)(@types/node@25.9.0)
+        specifier: ^1.0.13
+        version: 1.0.13(@types/node@25.9.0)
       '@mockholm/zapr':
         specifier: ^1.0.5
         version: 1.0.5(aws-cdk-lib@2.257.0(constructs@10.6.0))(constructs@10.6.0)
@@ -279,8 +274,8 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@mockholm/zap-downloader@1.0.11':
-    resolution: {integrity: sha512-zxoPczEzPqSrpDga1rDKqgQm4Smx4wdgDknfCOC8ZCCmxzmv5gMVd1VzYuhcJoTT/Sqetcs70hmY2UvYqWoC4g==}
+  '@mockholm/zap-downloader@1.0.13':
+    resolution: {integrity: sha512-FE2+37XwUX9dURA5jBErR7qk8yyAXJR6ayRT9hX6SAOkQcIaj97NDPQ9+96o3NY7vVNHmpuSGDfnx34We/08bw==}
     hasBin: true
 
   '@mockholm/zapr@1.0.5':
@@ -1949,7 +1944,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@mockholm/zap-downloader@1.0.11(patch_hash=mwocbxygfqtz5y4txlzdx5x5q4)(@types/node@25.9.0)':
+  '@mockholm/zap-downloader@1.0.13(@types/node@25.9.0)':
     dependencies:
       '@iarna/toml': 2.2.5
       axios: 1.16.1
