@@ -122,12 +122,11 @@ jobs:
           echo "Response: $OUTPUT"
           echo "$OUTPUT" > /tmp/trigger-response.json
 
-          if echo "$OUTPUT" | grep -qi "started"; then
-            echo "PASS: API returned result=started"
-          elif echo "$OUTPUT" | jq -e '.result == "started"' > /dev/null 2>&1; then
+          RESULT=$(echo "$OUTPUT" | grep -oP '"result"\s*:\s*"\K[^"]+')
+          if [ "$RESULT" = "started" ]; then
             echo "PASS: API returned result=started"
           else
-            echo "FAIL: expected result=started, got: $OUTPUT"
+            echo "FAIL: expected result=started, got: $RESULT"
             exit 1
           fi
 
@@ -168,12 +167,15 @@ jobs:
           echo "ALERTS_FOUND=$ALERTS_FOUND" >> $GITHUB_OUTPUT
           echo "Alerts found in logs: $ALERTS_FOUND"
 
-      - name: Cross-check alerts via ZAP API
+      - name: Cross-check alerts via zapr
         run: |
-          ALERTS=$(curl -s "http://127.0.0.1:8080/JSON/core/view/alerts?baseurl=http://example.com&start=0&count=500")
-          COUNT=$(echo "$ALERTS" | jq '[.alerts[] // [] | select(.pluginId == "60101")] | length')
+          pnpm exec zapr zap get-alerts \
+            --base-url http://example.com \
+            --workspace /tmp \
+            --name alerts.json
+          COUNT=$(jq '[.[] | select(.pluginId == "60101")] | length' /tmp/alerts.json)
           echo "Playwright alerts in ZAP (pluginId=60101): $COUNT"
-          echo "$ALERTS" | jq -r '.alerts[]? | select(.pluginId == "60101") | "  \(.alert) [\(.risk)] @ \(.url)"' || true
+          jq -r '.[] | select(.pluginId == "60101") | "  \(.alert) [\(.risk)] @ \(.url)"' /tmp/alerts.json || true
 
           if [ "$COUNT" -eq "0" ]; then
             echo "FAIL: no Playwright alerts created in ZAP"
@@ -188,12 +190,14 @@ jobs:
           echo "Response: $OUTPUT"
           echo "$OUTPUT" > /tmp/screenshot-response.txt
 
-          FILE_PATH=$(echo "$OUTPUT" | grep -oP '[\w/.-]+\.png' | head -1 || true)
+          FILE_PATH=$(echo "$OUTPUT" | grep -oP 'Screenshot saved to: \K/.+')
           if [ -z "$FILE_PATH" ]; then
-            FILE_PATH=$(echo "$OUTPUT" | jq -r '.result // empty' 2>/dev/null || true)
+            FILE_PATH=$(echo "$OUTPUT" | grep -oP '/\S+\.png' | head -1 || true)
           fi
           if [ -z "$FILE_PATH" ]; then
             echo "FAIL: screenshot-page did not return a file path"
+            echo "Full output:"
+            cat /tmp/screenshot-response.txt
             exit 1
           fi
           echo "SCREENSHOT_FILE=$FILE_PATH" >> $GITHUB_ENV
