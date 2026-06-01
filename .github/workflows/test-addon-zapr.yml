@@ -9,10 +9,8 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout add-on repo
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          path: addon
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -31,7 +29,6 @@ jobs:
           corepack prepare pnpm@9.0.0 --activate
 
       - name: Build add-on
-        working-directory: addon
         run: |
           chmod +x gradlew
           ./gradlew build -x test
@@ -64,7 +61,7 @@ jobs:
         run: |
           PLUGIN_DIR=$(find test-unpack -type d -name plugin | head -1)
           echo "PLUGIN_DIR=$PLUGIN_DIR"
-          cp "addon/${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
+          cp "${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
           ls -la "$PLUGIN_DIR"
 
       - name: Patch TOML for ZGC compat
