@@ -18,7 +18,7 @@
   "devDependencies": {
     "@jbangdev/jbang": "^0.7.1",
     "@mockholm/zap-downloader": "^1.0.13",
-    "@mockholm/zapr": "^1.0.5",
+    "@mockholm/zapr": "^1.0.7",
     "@types/node": "^25.9.0",
     "glob": "^13.0.6",
     "path": "^0.12.7",

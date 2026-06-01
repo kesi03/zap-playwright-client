@@ -15,8 +15,8 @@ importers:
         specifier: ^1.0.13
         version: 1.0.13(@types/node@25.9.0)
       '@mockholm/zapr':
-        specifier: ^1.0.5
-        version: 1.0.5(aws-cdk-lib@2.257.0(constructs@10.6.0))(constructs@10.6.0)
+        specifier: ^1.0.7
+        version: 1.0.7(aws-cdk-lib@2.257.0(constructs@10.6.0))(constructs@10.6.0)
       '@types/node':
         specifier: ^25.9.0
         version: 25.9.0
@@ -278,8 +278,8 @@ packages:
     resolution: {integrity: sha512-FE2+37XwUX9dURA5jBErR7qk8yyAXJR6ayRT9hX6SAOkQcIaj97NDPQ9+96o3NY7vVNHmpuSGDfnx34We/08bw==}
     hasBin: true
 
-  '@mockholm/zapr@1.0.5':
-    resolution: {integrity: sha512-25Q0HZV7L4+sj37+ECxsDr3o/taEqXNGV32UZiBSeNMNtB8OqNivwYwfsPpI/W5P2vKmuu20q+SnkSMybimbsA==}
+  '@mockholm/zapr@1.0.7':
+    resolution: {integrity: sha512-ypYv7Rac2SAx3VtLgzOlYR2e5mMgN4s6vqg/opzf61h7SLPbOaGXuyK+b5coTWDFcIVjnm+lSLkCK6IrlYVkyA==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -1968,7 +1968,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@mockholm/zapr@1.0.5(aws-cdk-lib@2.257.0(constructs@10.6.0))(constructs@10.6.0)':
+  '@mockholm/zapr@1.0.7(aws-cdk-lib@2.257.0(constructs@10.6.0))(constructs@10.6.0)':
     dependencies:
       '@iarna/toml': 2.2.5
       '@types/dockerode': 4.0.1
