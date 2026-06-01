@@ -1,0 +1,258 @@
+name: Test Playwright Client Add-on (Zapr)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-addon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout add-on repo
+        uses: actions/checkout@v4
+        with:
+          path: addon
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable Corepack + pin pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+
+      - name: Build add-on
+        working-directory: addon
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x test
+          ADDON=$(ls build/zapAddOn/bin/*.zap 2>/dev/null | head -1 || true)
+          if [ -z "$ADDON" ]; then
+            ADDON=$(ls build/libs/*.jar 2>/dev/null | head -1 || true)
+          fi
+          if [ -z "$ADDON" ]; then
+            echo "No add-on artifact found"
+            exit 1
+          fi
+          echo "ADDON_PATH=$ADDON" >> $GITHUB_ENV
+          echo "Add-on artifact: $ADDON"
+
+      - name: Install npm dependencies
+        run: pnpm install
+
+      - name: Create offline ZAP package
+        run: |
+          pnpm exec zap-downloader offline pack -o zap-offline.tar
+          echo "OFFLINE_PACKAGE=zap-offline.tar" >> $GITHUB_ENV
+
+      - name: Unpack offline package
+        run: |
+          pnpm exec zap-downloader offline unpack \
+            -i "${{ env.OFFLINE_PACKAGE }}" \
+            -o test-unpack
+
+      - name: Install add-on into ZAP plugin dir
+        run: |
+          PLUGIN_DIR=$(find test-unpack -type d -name plugin | head -1)
+          echo "PLUGIN_DIR=$PLUGIN_DIR"
+          cp "addon/${{ env.ADDON_PATH }}" "$PLUGIN_DIR/"
+          ls -la "$PLUGIN_DIR"
+
+      - name: Patch TOML for ZGC compat
+        run: |
+          TOML=$(find test-unpack -name default.toml | head -1)
+          if grep -q "UseZGC" "$TOML" && ! grep -q "UnlockExperimentalVMOptions" "$TOML"; then
+            sed -i '/-XX:+UseZGC/i\  "-XX:+UnlockExperimentalVMOptions",' "$TOML"
+          fi
+
+      - name: Install Playwright browsers and OS dependencies
+        run: |
+          set -e
+          PW_PATH="$(pwd)/test-unpack/workspace/.playwright"
+          mkdir -p "$PW_PATH"
+          export PLAYWRIGHT_BROWSERS_PATH="$PW_PATH"
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates fonts-liberation libasound2 libasound2t64 \
+            libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libgbm1 \
+            libgtk-3-0 libnss3 libx11-xcb1 libxcomposite1 libxdamage1 \
+            libxext6 libxfixes3 libxrandr2 libxss1 libxshmfence1 \
+            libxtst6 libegl1 wget gnupg libxcb1 libffi8 libx264-dev || true
+          pnpm exec playwright install chromium --with-deps
+
+      - name: Start ZAP daemon
+        run: |
+          TOML=$(find test-unpack -name default.toml | head -1)
+          export PLAYWRIGHT_BROWSERS_PATH="$(pwd)/test-unpack/workspace/.playwright"
+          export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
+          pnpm exec zapr daemon start -t "$TOML"
+
+      - name: Wait for daemon
+        run: pnpm exec zapr daemon started --timeout 100 --host 127.0.0.1
+
+      - name: Debug ZAP logs
+        if: always()
+        run: |
+          echo "=== PM2 list ==="
+          npx pm2 list || true
+          echo "=== Java processes ==="
+          ps aux | grep java || true
+          echo "=== ZAP log (head -100) ==="
+          cat test-unpack/workspace/.zap/zap.log | head -100 || true
+
+      - name: Upload full ZAP log (CI)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-log
+          path: test-unpack/workspace/.zap/zap.log
+          retention-days: 7
+
+      - name: Run Playwright crawl and scan via zapr
+        id: trigger
+        run: |
+          OUTPUT=$(pnpm exec zapr zap addons run-crawl-and-scan http://example.com 2>&1)
+          echo "Response: $OUTPUT"
+          echo "$OUTPUT" > /tmp/trigger-response.json
+
+          if echo "$OUTPUT" | grep -qi "started"; then
+            echo "PASS: API returned result=started"
+          elif echo "$OUTPUT" | jq -e '.result == "started"' > /dev/null 2>&1; then
+            echo "PASS: API returned result=started"
+          else
+            echo "FAIL: expected result=started, got: $OUTPUT"
+            exit 1
+          fi
+
+      - name: Wait for alerts in logs
+        id: wait_alerts
+        shell: bash
+        run: |
+          LOG_DIR="$HOME/.pm2/logs"
+          ERROR_LOG="$LOG_DIR/zap-daemon-error.log"
+          OUT_LOG="$LOG_DIR/zap-daemon-out.log"
+          POLL_S=2
+          TIMEOUT_S=120
+          DEADLINE=$((SECONDS + TIMEOUT_S))
+
+          PREV_ERR=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
+          PREV_OUT=$(wc -l < "$OUT_LOG" 2>/dev/null || echo 0)
+
+          ALERTS_FOUND=0
+          while [ $SECONDS -lt $DEADLINE ]; do
+            ERR_LINES=$(tail -n +$((PREV_ERR + 1)) "$ERROR_LOG" 2>/dev/null || true)
+            OUT_LINES=$(tail -n +$((PREV_OUT + 1)) "$OUT_LOG" 2>/dev/null || true)
+            PREV_ERR=$(wc -l < "$ERROR_LOG" 2>/dev/null || echo 0)
+            PREV_OUT=$(wc -l < "$OUT_LOG" 2>/dev/null || echo 0)
+
+            while IFS= read -r line; do
+              if echo "$line" | grep -qE "Created ZAP alert for"; then
+                echo "  [ALERT] $line"
+                ALERTS_FOUND=$((ALERTS_FOUND + 1))
+              fi
+            done < <(echo "$ERR_LINES"; echo "$OUT_LINES")
+
+            if [ $ALERTS_FOUND -gt 0 ]; then
+              break
+            fi
+            sleep $POLL_S
+          done
+
+          echo "ALERTS_FOUND=$ALERTS_FOUND" >> $GITHUB_OUTPUT
+          echo "Alerts found in logs: $ALERTS_FOUND"
+
+      - name: Cross-check alerts via ZAP API
+        run: |
+          ALERTS=$(curl -s "http://127.0.0.1:8080/JSON/core/view/alerts?baseurl=http://example.com&start=0&count=500")
+          COUNT=$(echo "$ALERTS" | jq '[.alerts[] // [] | select(.pluginId == "60101")] | length')
+          echo "Playwright alerts in ZAP (pluginId=60101): $COUNT"
+          echo "$ALERTS" | jq -r '.alerts[]? | select(.pluginId == "60101") | "  \(.alert) [\(.risk)] @ \(.url)"' || true
+
+          if [ "$COUNT" -eq "0" ]; then
+            echo "FAIL: no Playwright alerts created in ZAP"
+            exit 1
+          fi
+          echo "PASS: $COUNT Playwright alert(s) created"
+
+      - name: Take screenshot via zapr
+        id: screenshot
+        run: |
+          OUTPUT=$(pnpm exec zapr zap addons screenshot-page http://example.com 2>&1)
+          echo "Response: $OUTPUT"
+          echo "$OUTPUT" > /tmp/screenshot-response.txt
+
+          FILE_PATH=$(echo "$OUTPUT" | grep -oP '[\w/.-]+\.png' | head -1 || true)
+          if [ -z "$FILE_PATH" ]; then
+            FILE_PATH=$(echo "$OUTPUT" | jq -r '.result // empty' 2>/dev/null || true)
+          fi
+          if [ -z "$FILE_PATH" ]; then
+            echo "FAIL: screenshot-page did not return a file path"
+            exit 1
+          fi
+          echo "SCREENSHOT_FILE=$FILE_PATH" >> $GITHUB_ENV
+          echo "PASS: screenshot saved to $FILE_PATH"
+
+      - name: Download screenshot via zapr
+        run: |
+          pnpm exec zapr zap addons download-screenshot "${{ env.SCREENSHOT_FILE }}" -o /tmp/screenshot.png
+
+      - name: Validate screenshot PNG
+        run: |
+          if [ ! -f /tmp/screenshot.png ]; then
+            echo "FAIL: screenshot PNG not downloaded"
+            exit 1
+          fi
+          SIZE=$(stat --format=%s /tmp/screenshot.png)
+          HEADER=$(xxd -l 8 -p /tmp/screenshot.png)
+          if [ "$HEADER" != "89504e470d0a1a0a" ]; then
+            echo "FAIL: invalid PNG header: $HEADER"
+            exit 1
+          fi
+          echo "PASS: valid PNG screenshot, $SIZE bytes"
+
+      - name: Upload screenshot artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot
+          path: /tmp/screenshot.png
+          retention-days: 7
+
+      - name: Upload ZAP log after run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-log-after-run
+          path: test-unpack/workspace/.zap/zap.log
+          retention-days: 7
+
+      - name: Upload Playwright client error log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwrightclient-error-log
+          path: |
+            /tmp/playwrightclient-error.log
+            test-unpack/workspace/.zap/playwrightclient-error.log
+          retention-days: 7
+
+      - name: Stop daemon
+        if: always()
+        run: pnpm exec zapr daemon stop || true
+
+      - name: Upload add-on artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-playwright-client
+          path: ${{ env.ADDON_PATH }}
+          retention-days: 7
