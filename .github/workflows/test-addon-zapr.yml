@@ -169,9 +169,8 @@ jobs:
 
       - name: Cross-check alerts via zapr
         run: |
-          pnpm exec zapr zap get-alerts \
+          ZAPR_WORKSPACE=/tmp pnpm exec zapr zap get-alerts \
             --base-url http://example.com \
-            --workspace /tmp \
             --name alerts.json
           COUNT=$(jq '[.[] | select(.pluginId == "60101")] | length' /tmp/alerts.json)
           echo "Playwright alerts in ZAP (pluginId=60101): $COUNT"
